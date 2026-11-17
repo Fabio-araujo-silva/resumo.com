@@ -34,15 +34,15 @@ export function gerarSenha() {
 
 export const normLogin = (e) => String(e || "").trim().toLowerCase();
 
-export function criarUsuario(db, { email, nome, senha, papel = "aluno", expiraEm = null, acessoTotal = true, materias = [] }) {
+export function criarUsuario(db, { email, nome, senha, papel = "aluno", expiraEm = null, acessoTotal = true, materias = [], provisoria = false }) {
   const login = normLogin(email);
   if (!/^[^\s]{3,120}$/.test(login)) throw new HttpError(400, "login inválido (3 a 120 caracteres, sem espaços)");
   if (typeof senha !== "string" || senha.length < 8) throw new HttpError(400, "a senha precisa ter pelo menos 8 caracteres");
   if (!["admin", "aluno"].includes(papel)) throw new HttpError(400, "papel inválido");
   if (db.prepare("select 1 from users where email = ?").get(login)) throw new HttpError(409, "já existe uma conta com esse login");
   const id = novoId();
-  db.prepare("insert into users (id, email, nome, senha_hash, papel, ativo, expira_em, acesso_total, criado_em) values (?, ?, ?, ?, ?, 1, ?, ?, ?)").run(
-    id, login, String(nome || "").trim().slice(0, 80) || login.split("@")[0], hashSenha(senha), papel, expiraEm, acessoTotal ? 1 : 0, Date.now()
+  db.prepare("insert into users (id, email, nome, senha_hash, papel, ativo, expira_em, acesso_total, criado_em, senha_provisoria) values (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)").run(
+    id, login, String(nome || "").trim().slice(0, 80) || login.split("@")[0], hashSenha(senha), papel, expiraEm, acessoTotal ? 1 : 0, Date.now(), provisoria ? 1 : 0
   );
   const ins = db.prepare("insert or ignore into user_materias (user_id, materia_id) values (?, ?)");
   for (const m of materias) ins.run(id, String(m));
@@ -54,7 +54,7 @@ export function garantirAdmin(db, config, log = console.log) {
   if (db.prepare("select 1 from users where papel = 'admin'").get()) return null;
   const email = config.adminEmail || "admin@sinapse.local";
   const senha = config.adminSenha || gerarSenha();
-  criarUsuario(db, { email, nome: config.adminNome, senha, papel: "admin" });
+  criarUsuario(db, { email, nome: config.adminNome, senha, papel: "admin", provisoria: !config.adminSenha });
   if (!config.adminSenha) {
     const aviso = `Primeiro acesso do Sinapse\nlogin: ${email}\nsenha: ${senha}\n\nTroque a senha em Conta depois de entrar e apague este arquivo.\n`;
     try {
@@ -66,7 +66,7 @@ export function garantirAdmin(db, config, log = console.log) {
 }
 
 const publico = (u) =>
-  u && { id: u.id, email: u.email, nome: u.nome, papel: u.papel, acessoTotal: !!u.acesso_total, expiraEm: u.expira_em, etiqueta: etiquetaDe(u.id) };
+  u && { id: u.id, email: u.email, nome: u.nome, papel: u.papel, acessoTotal: !!u.acesso_total, expiraEm: u.expira_em, etiqueta: etiquetaDe(u.id), novosPorDia: u.novos_por_dia, senhaProvisoria: !!u.senha_provisoria };
 // Etiqueta curta e estável de cada conta: vai na marca d'água visível e na invisível.
 export const etiquetaDe = (userId) => sha256("sinapse:" + userId).slice(0, 10);
 
@@ -154,11 +154,13 @@ export function registrarAuth(app, { db, config }) {
   app.post("/api/auth/senha", async (req) => {
     const user = exigirUsuario(req);
     const { atual, nova } = req.body || {};
-    if (typeof atual !== "string" || !conferirSenha(atual, user.senha_hash)) throw new HttpError(401, "senha atual incorreta");
+    // quem entrou com senha provisória acabou de prová-la no login: não precisa digitá-la de novo
+    if (!user.senha_provisoria && (typeof atual !== "string" || !conferirSenha(atual, user.senha_hash))) throw new HttpError(401, "senha atual incorreta");
     if (typeof nova !== "string" || nova.length < 8) throw new HttpError(400, "a senha nova precisa ter pelo menos 8 caracteres");
-    db.prepare("update users set senha_hash = ? where id = ?").run(hashSenha(nova), user.id);
+    if (conferirSenha(nova, user.senha_hash)) throw new HttpError(400, "escolha uma senha diferente da atual");
+    db.prepare("update users set senha_hash = ?, senha_provisoria = 0 where id = ?").run(hashSenha(nova), user.id);
     db.prepare("delete from sessoes where user_id = ? and token_hash != ?").run(user.id, req.sessaoHash || "");
-    return { ok: true };
+    return { ok: true, user: publico(q.porId.get(user.id)) };
   });
 }
 
