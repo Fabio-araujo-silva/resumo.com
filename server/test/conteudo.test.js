@@ -132,7 +132,8 @@ test("utilidades do pacote: prefixo numérico e propriedades", () => {
 test("pacote válido: matéria, módulos na ordem, notas, contagens", () => {
   const r = analisarPacote(pacoteAnatomia());
   assert.equal(r.ok, true, relatorio(r));
-  assert.deepEqual(r.materia, { slug: "anatomia", nome: "Anatomia", semestre: 1, eixo: "", descricao: "", cor: "", provaData: "2030-06-10", provaFoco: "Plexo braquial e manguito." });
+  assert.deepEqual(r.materia, { slug: "anatomia", nome: "Anatomia", semestre: 1, eixo: "", descricao: "", cor: "", avaliacao: "n1", provaData: "2030-06-10", provaFoco: "Plexo braquial e manguito.", n2Data: null, n2Foco: null });
+  assert.deepEqual(r.modulos.map((m) => m.avaliacao), ["n1", "n1"], "sem dizer nada, tudo é N1");
   assert.deepEqual(r.modulos.map((m) => [m.slug, m.titulo, m.ordem]), [["membro-superior", "Membro Superior", 1], ["membro-inferior", "Membro Inferior", 2]]);
   assert.deepEqual(r.notas.map((n) => n.slug), ["mapa-membro-superior", "plexo-braquial", "manguito-rotador", "nervo-isquiatico"]);
   assert.deepEqual(r.resumo, { modulos: 2, notas: 4, notasDeProva: 2, flashcards: 6, questoes: 1, anexos: 1, palavras: r.resumo.palavras });

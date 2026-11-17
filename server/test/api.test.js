@@ -9,6 +9,9 @@ import { lerEtiquetas } from "../src/markdown.js";
 import { etiquetaDe, garantirAdmin } from "../src/auth.js";
 import { abrirDb } from "../src/db.js";
 
+const resumida = ({ novos, aprendendo, revisar, total }) => ({ novos, aprendendo, revisar, total });
+const relatorioDe = (r) => r.erros.map((e) => e.msg).join(" | ");
+
 test("contas: login, senha errada, conta desativada, vencida e troca de senha", async () => {
   const s = await subir();
   const { pedir } = s;
@@ -254,7 +257,7 @@ test("flashcards: a fila segue o Anki ao longo dos dias, por aluno e por matéri
   assert.deepEqual([baralhos.estatisticas.feitasHoje, baralhos.estatisticas.sequencia, baralhos.estatisticas.retencao], [0, 0, null]);
 
   let p = await prox();
-  assert.deepEqual(p.contagem, { novos: 6, aprendendo: 0, revisar: 0, total: 6 });
+  assert.deepEqual(resumida(p.contagem), { novos: 6, aprendendo: 0, revisar: 0, total: 6 });
   assert.equal(p.carta.estado, "novo");
   assert.match(p.carta.frente, /Pergunta 1 sobre Plexo braquial/, "cartas novas vêm na ordem das notas");
   assert.match(p.carta.verso, /Resposta 1/);
@@ -265,7 +268,7 @@ test("flashcards: a fila segue o Anki ao longo dos dias, por aluno e por matéri
   // Bom na 1ª carta: entra em aprendizado (10 min). A próxima é outra carta nova.
   p = await resp(c1, 3);
   assert.deepEqual(p.agendada.estado, "aprendendo");
-  assert.deepEqual(p.contagem, { novos: 5, aprendendo: 1, revisar: 0, total: 6 });
+  assert.deepEqual(resumida(p.contagem), { novos: 5, aprendendo: 1, revisar: 0, total: 6 });
   assert.notEqual(p.carta.id, c1);
   const c2 = p.carta.id;
   // Fácil na 2ª: forma direto com 4 dias.
@@ -274,7 +277,7 @@ test("flashcards: a fila segue o Anki ao longo dos dias, por aluno e por matéri
   // De novo na 3ª: volta em 1 minuto.
   const c3 = p.carta.id;
   p = await resp(c3, 1);
-  assert.deepEqual(p.contagem, { novos: 3, aprendendo: 2, revisar: 0, total: 6 });
+  assert.deepEqual(resumida(p.contagem), { novos: 3, aprendendo: 2, revisar: 0, total: 6 });
 
   // 2 minutos depois, a carta que errou tem prioridade sobre as novas
   s.relogio.t += 2 * MIN;
@@ -293,7 +296,7 @@ test("flashcards: a fila segue o Anki ao longo dos dias, por aluno e por matéri
   p = await resp(c3, 3);
   // faz as 3 novas que sobraram com Fácil
   while (p.carta) p = await resp(p.carta.id, 4);
-  assert.deepEqual(p.contagem, { novos: 0, aprendendo: 0, revisar: 0, total: 6 });
+  assert.deepEqual(resumida(p.contagem), { novos: 0, aprendendo: 0, revisar: 0, total: 6 });
   assert.equal(p.proximaEm, null);
 
   // o progresso é só da Ana, e só da anatomia
@@ -304,7 +307,7 @@ test("flashcards: a fila segue o Anki ao longo dos dias, por aluno e por matéri
   // no dia seguinte: vencem as duas cartas de 1 dia; as de 4 dias, não
   s.relogio.t += DIA;
   p = await prox();
-  assert.deepEqual(p.contagem, { novos: 0, aprendendo: 0, revisar: 2, total: 6 });
+  assert.deepEqual(resumida(p.contagem), { novos: 0, aprendendo: 0, revisar: 2, total: 6 });
   assert.equal(p.carta.estado, "revisao");
   assert.deepEqual(p.previsoes, { 1: "10 min", 2: "2 d", 3: "3 d", 4: "4 d" }, "intervalo 1 d, facilidade 2,5: Difícil 2, Bom 3, Fácil 4");
   const revisada = p.carta.id;
@@ -505,5 +508,146 @@ test("cabeçalhos de segurança e rotas desconhecidas", async () => {
   assert.match(r.headers["x-robots-tag"], /noindex/);
   assert.equal((await s.pedir(null, "GET", "/api/nao-existe")).status, 404);
   assert.deepEqual((await s.pedir(null, "GET", "/api/config")).json, { nome: "Sinapse", protecao: { desfocar: true } });
+  await s.fechar();
+});
+
+test("avaliações: cada módulo é da N1 ou da N2, com prova, cartas e filtro próprios", async () => {
+  const s = await subir();
+  const yml = ["formato: 1", "slug: anatomia", "nome: Anatomia", "semestre: 1", "prova:", "  n1:", "    data: 2030-04-10", "    foco: Membro superior.", "  n2:", "    data: 2030-06-20", "    foco: Membro inferior.", "modulos:", '  - pasta: "02 - Membro Inferior"', "    avaliacao: N2", ""].join("\n");
+  s.importar(pacoteAnatomia({ "materia.yml": yml }));
+  const ana = await s.entrar("ana@teste.com", "ana-senha-123");
+  const admin = await s.entrar("admin@teste.com", "admin-senha-1");
+  const modulos = async () => (await s.pedir(ana, "GET", "/api/biblioteca")).json.modulos.map((m) => [m.titulo, m.avaliacao]);
+  const prova = async (av) => (await s.pedir(ana, "GET", "/api/prova/anatomia" + (av ? "?av=" + av : ""))).json;
+
+  const bib = (await s.pedir(ana, "GET", "/api/biblioteca")).json;
+  assert.deepEqual(await modulos(), [["Membro Superior", "n1"], ["Membro Inferior", "n2"]]);
+  assert.deepEqual([bib.materias[0].prova_data, bib.materias[0].n2_data], ["2030-04-10", "2030-06-20"]);
+
+  // modo prova: cada avaliação com as suas notas, a sua data e o seu foco
+  const n1 = await prova("n1");
+  assert.deepEqual([n1.av, n1.notas.map((n) => n.titulo), n1.materia.provaData, n1.materia.provaFoco], ["n1", ["Plexo braquial"], "2030-04-10", "Membro superior."]);
+  assert.deepEqual(n1.avaliacoes, [{ av: "n1", notas: 1, data: "2030-04-10" }, { av: "n2", notas: 1, data: "2030-06-20" }]);
+  assert.deepEqual([n1.dicas.length, n1.questoes.length], [1, 1]);
+  const n2 = await prova("n2");
+  assert.deepEqual([n2.av, n2.notas.map((n) => n.titulo), n2.materia.provaData, n2.materia.provaFoco], ["n2", ["Nervo isquiático"], "2030-06-20", "Membro inferior."]);
+  assert.deepEqual([n2.dicas.length, n2.questoes.length], [0, 0]);
+  assert.equal((await prova()).av, "n1", "sem escolher, abre a prova marcada mais próxima");
+
+  // flashcards: dá para estudar só as cartas de uma avaliação
+  const cartas = async (av) => (await s.pedir(ana, "GET", "/api/flashcards/proxima?materia=anatomia&av=" + av)).json.contagem.total;
+  assert.deepEqual([await cartas("n1"), await cartas("n2")], [4, 2]);
+  const baralho = (await s.pedir(ana, "GET", "/api/flashcards/baralhos")).json.baralhos[0];
+  assert.deepEqual(baralho.avaliacoes, [{ av: "n1", cartas: 4 }, { av: "n2", cartas: 2 }]);
+
+  // um pacote que não fala de avaliação não desfaz a separação
+  s.importar(pacoteAnatomia());
+  assert.deepEqual(await modulos(), [["Membro Superior", "n1"], ["Membro Inferior", "n2"]]);
+
+  // painel: a matéria inteira para a N2, depois um módulo de volta para a N1
+  assert.equal((await s.pedir(admin, "POST", "/api/admin/materias/anatomia/avaliacao", { avaliacao: "n2" })).json.alterados, 2);
+  assert.deepEqual(await modulos(), [["Membro Superior", "n2"], ["Membro Inferior", "n2"]]);
+  const tudoN2 = await prova("n1");
+  assert.deepEqual([tudoN2.av, tudoN2.notas.length, tudoN2.avaliacoes.length], ["n2", 2, 1], "pedir uma avaliação vazia cai na que tem conteúdo");
+  assert.equal((await s.pedir(admin, "POST", "/api/admin/materias/anatomia/avaliacao", { avaliacao: "N1", modulo: "membro-superior" })).json.alterados, 1);
+  assert.deepEqual(await modulos(), [["Membro Superior", "n1"], ["Membro Inferior", "n2"]]);
+  assert.equal((await s.pedir(admin, "POST", "/api/admin/materias/anatomia/avaliacao", { avaliacao: "n3" })).status, 400);
+  assert.equal((await s.pedir(admin, "POST", "/api/admin/materias/anatomia/avaliacao", { avaliacao: "n1", modulo: "nao-existe" })).status, 404);
+  assert.equal((await s.pedir(ana, "POST", "/api/admin/materias/anatomia/avaliacao", { avaliacao: "n1" })).status, 403);
+
+  // data e foco da N2 pelo painel
+  await s.pedir(admin, "PATCH", "/api/admin/materias/anatomia", { n2Data: "2030-07-01", n2Foco: "Só o isquiático." });
+  const depois = await prova("n2");
+  assert.deepEqual([depois.materia.provaData, depois.materia.provaFoco], ["2030-07-01", "Só o isquiático."]);
+  assert.equal((await prova("n1")).materia.provaData, "2030-06-10", "a N1 fica como o último pacote deixou");
+  const mat = (await s.pedir(admin, "GET", "/api/admin/materias")).json.materias[0];
+  assert.deepEqual([mat.n2Data, mat.modulos.map((m) => m.avaliacao)], ["2030-07-01", ["n1", "n2"]]);
+
+  // a separação sai na exportação e volta na importação
+  const exp = await s.pedir(admin, "GET", "/api/admin/materias/anatomia/exportar");
+  const volta = analisarPacote(lerZip(exp.bruto));
+  assert.deepEqual(volta.modulos.map((m) => m.avaliacao), ["n1", "n2"]);
+  assert.deepEqual([volta.materia.provaData, volta.materia.n2Data, volta.materia.n2Foco], ["2030-06-10", "2030-07-01", "Só o isquiático."]);
+  await s.fechar();
+});
+
+test("avaliações no pacote: padrão da matéria, exceção por módulo e valor inválido", () => {
+  const base = "formato: 1\nslug: anatomia\nnome: Anatomia\nsemestre: 1\n";
+  const tudoN2 = analisarPacote(pacoteAnatomia({ "materia.yml": base + "avaliacao: n2\nprova:\n  data: 2030-06-20\n  foco: Tudo.\n" }));
+  assert.deepEqual(tudoN2.modulos.map((m) => m.avaliacao), ["n2", "n2"]);
+  assert.deepEqual([tudoN2.materia.provaData, tudoN2.materia.n2Data, tudoN2.materia.n2Foco], [null, "2030-06-20", "Tudo."], "prova solta vale para a avaliação padrão da matéria");
+  const misto = analisarPacote(pacoteAnatomia({ "materia.yml": base + 'avaliacao: n2\nmodulos:\n  - pasta: "01 - Membro Superior"\n    avaliacao: n1\n' }));
+  assert.deepEqual(misto.modulos.map((m) => m.avaliacao), ["n1", "n2"]);
+  const ruim = analisarPacote(pacoteAnatomia({ "materia.yml": base + 'modulos:\n  - pasta: "01 - Membro Superior"\n    avaliacao: n3\n' }));
+  assert.ok(ruim.erros.some((e) => /'avaliacao' inválida/.test(e.msg)), relatorioDe(ruim));
+  assert.ok(analisarPacote(pacoteAnatomia({ "materia.yml": base + "avaliacao: final\n" })).erros.some((e) => /'avaliacao' inválida/.test(e.msg)));
+});
+
+test("limite diário de cartas novas: cada assinante escolhe o seu", async () => {
+  const s = await subir();
+  const muitas = {};
+  for (let i = 0; i < 5; i++) muitas[`03 - Extra/0${i} - Nota ${i}.md`] = nota({ titulo: "Nota extra " + i, cards: 5, corpo: "x ".repeat(60) + "[[Plexo braquial]]" });
+  s.importar(pacoteAnatomia(muitas));
+  const ana = await s.entrar("ana@teste.com", "ana-senha-123");
+  const admin = await s.entrar("admin@teste.com", "admin-senha-1");
+  const fila = async (c) => (await s.pedir(c, "GET", "/api/flashcards/proxima?materia=anatomia")).json.contagem;
+
+  let c = await fila(ana);
+  assert.deepEqual([c.novos, c.novasRestantes, c.limite, c.total], [20, 11, 20, 31], "o padrão é o do Anki: 20 novas por dia");
+  assert.deepEqual((await s.pedir(ana, "GET", "/api/flashcards/baralhos")).json.limite, { novosPorDia: 20, padrao: 20, minimo: 5, maximo: 500 });
+
+  assert.deepEqual((await s.pedir(ana, "POST", "/api/flashcards/limite", { novosPorDia: 40 })).json, { novosPorDia: 40 });
+  c = await fila(ana);
+  assert.deepEqual([c.novos, c.novasRestantes, c.limite], [31, 0, 40], "as cartas que estavam para amanhã entram hoje");
+  const b = (await s.pedir(ana, "GET", "/api/flashcards/baralhos")).json;
+  assert.deepEqual([b.limite.novosPorDia, b.baralhos[0].novos, b.baralhos[0].novasRestantes], [40, 31, 0]);
+  assert.equal((await s.pedir(ana, "GET", "/api/auth/me")).json.user.novosPorDia, 40);
+  assert.equal((await fila(admin)).novos, 20, "o limite é de cada conta");
+
+  // diminuir também vale, e o que já foi feito hoje conta
+  let p = (await s.pedir(ana, "GET", "/api/flashcards/proxima?materia=anatomia")).json;
+  for (let i = 0; i < 8; i++) p = (await s.pedir(ana, "POST", "/api/flashcards/responder", { materia: "anatomia", carta: p.carta.id, resposta: 4 })).json;
+  await s.pedir(ana, "POST", "/api/flashcards/limite", { novosPorDia: 10 });
+  c = await fila(ana);
+  assert.deepEqual([c.novos, c.novasRestantes], [2, 21], "10 por dia, 8 já feitas: sobram 2 hoje");
+
+  for (const ruim of [3, 9999, "abc", null]) assert.equal((await s.pedir(ana, "POST", "/api/flashcards/limite", { novosPorDia: ruim })).status, 400, String(ruim));
+  assert.equal((await s.pedir(null, "POST", "/api/flashcards/limite", { novosPorDia: 30 })).status, 401);
+  await s.fechar();
+});
+
+test("senha provisória: quem recebe a senha do administrador cria a própria ao entrar", async () => {
+  const s = await subir();
+  const admin = await s.entrar("admin@teste.com", "admin-senha-1");
+  const criado = (await s.pedir(admin, "POST", "/api/admin/usuarios", { nome: "Bia", email: "bia@teste.com" })).json;
+  assert.equal(criado.usuario.senhaProvisoria, true);
+  const bia = await s.entrar("bia@teste.com", criado.senha);
+  assert.equal((await s.pedir(bia, "GET", "/api/auth/me")).json.user.senhaProvisoria, true);
+
+  assert.equal((await s.pedir(bia, "POST", "/api/auth/senha", { nova: "curta" })).status, 400);
+  const igual = await s.pedir(bia, "POST", "/api/auth/senha", { nova: criado.senha });
+  assert.equal(igual.status, 400);
+  assert.match(igual.json.error, /diferente/);
+  // não precisa repetir a provisória: acabou de entrar com ela
+  const r = await s.pedir(bia, "POST", "/api/auth/senha", { nova: "minha-senha-nova" });
+  assert.deepEqual([r.status, r.json.user.senhaProvisoria], [200, false]);
+  await assert.rejects(s.entrar("bia@teste.com", criado.senha), "a provisória deixa de valer");
+  const bia2 = await s.entrar("bia@teste.com", "minha-senha-nova");
+
+  // com senha própria, trocar exige a atual
+  assert.equal((await s.pedir(bia2, "POST", "/api/auth/senha", { nova: "outra-senha-123" })).status, 401);
+  assert.equal((await s.pedir(bia2, "POST", "/api/auth/senha", { atual: "errada", nova: "outra-senha-123" })).status, 401);
+  assert.equal((await s.pedir(bia2, "POST", "/api/auth/senha", { atual: "minha-senha-nova", nova: "outra-senha-123" })).status, 200);
+
+  // esqueceu: o administrador gera outra, que volta a ser provisória
+  const nova = (await s.pedir(admin, "PATCH", "/api/admin/usuarios/" + criado.usuario.id, { novaSenha: true })).json;
+  assert.equal(nova.usuario.senhaProvisoria, true);
+  const bia3 = await s.entrar("bia@teste.com", nova.senha);
+  assert.equal((await s.pedir(bia3, "POST", "/api/auth/senha", { nova: "terceira-senha-1" })).status, 200);
+
+  // conta com senha própria desde o começo nunca é tratada como provisória
+  const ana = await s.entrar("ana@teste.com", "ana-senha-123");
+  assert.equal((await s.pedir(ana, "GET", "/api/auth/me")).json.user.senhaProvisoria, false);
+  assert.equal((await s.pedir(ana, "POST", "/api/auth/senha", { nova: "sem-a-atual-123" })).status, 401);
   await s.fechar();
 });
