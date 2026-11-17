@@ -85,7 +85,7 @@ export function Layout({ children }: { children: ReactNode }) {
             <span className="avatar">{usuario.nome.slice(0, 1).toUpperCase()}</span>
             <span>
               <strong>{usuario.nome}</strong>
-              <small>{admin ? "Administrador" : "Assinante"} · conta e senha</small>
+              <small>Conta e senha</small>
             </span>
           </Link>
           <div className="lateral-acoes">
