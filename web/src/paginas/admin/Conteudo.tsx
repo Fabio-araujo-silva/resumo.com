@@ -40,7 +40,7 @@ export function ConteudoLista() {
             <div className="selos">
               <Selo tipo="neutro">{m.notas} notas</Selo>
               <Selo tipo="prova">{m.deProva} de prova</Selo>
-              <Selo tipo="neutro">{m.flashcards} cartas</Selo>
+              <Selo tipo="neutro">{m.flashcards} flashcards</Selo>
               {m.rascunhos > 0 && <Selo tipo="rascunho">{m.rascunhos} rascunho(s)</Selo>}
             </div>
             <small>{m.provaData ? "Prova em " + m.provaData.split("-").reverse().join("/") : "Sem data de prova"} · atualizada {quando(m.atualizadoEm)}</small>
@@ -111,7 +111,7 @@ export function ConteudoMateria({ id }: { id: string }) {
     }
   };
   const apagarNota = async (n: NotaAdmin) => {
-    if (!confirm(`Apagar a nota "${n.titulo}"? Os flashcards dela e o progresso dos alunos nessas cartas somem junto.`)) return;
+    if (!confirm(`Apagar a nota "${n.titulo}"? Os flashcards dela e o progresso dos assinantes neles somem junto.`)) return;
     try {
       await api.del("/api/admin/notas/" + n.id);
       depois("Nota apagada.");
@@ -171,7 +171,7 @@ export function ConteudoMateria({ id }: { id: string }) {
               </label>
             </fieldset>
           </div>
-          <p className="sub">Cada módulo abaixo pertence à N1 ou à N2 (troque no título do módulo). Marque também quais notas são conteúdo de prova: são elas que entram no modo prova e nas "cartas da prova" de cada avaliação.</p>
+          <p className="sub">Cada módulo abaixo pertence à N1 ou à N2 (troque no título do módulo). Marque também quais notas são conteúdo de prova: são elas que entram no modo prova e nos "flashcards da prova" de cada avaliação.</p>
           <div><button className="botao primario">Salvar prova</button></div>
         </form>
       </div>
@@ -212,7 +212,7 @@ export function ConteudoMateria({ id }: { id: string }) {
                     <option value="n2">N2</option>
                   </select>
                 </th>
-                <th title="É conteúdo de prova?">Prova</th><th>Prioridade</th><th>Publicada</th><th>Cartas</th><th />
+                <th title="É conteúdo de prova?">Prova</th><th>Prioridade</th><th>Publicada</th><th>Flashcards</th><th />
               </tr>
             </thead>
             <tbody>

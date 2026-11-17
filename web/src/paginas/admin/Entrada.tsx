@@ -76,7 +76,7 @@ function ImportarPacote() {
   return (
     <section className="cartao">
       <h2 className="titulo-secao"><Icone nome="upload" tam={17} /> Pacote de resumos (.zip)</h2>
-      <p className="sub">O pacote é uma pasta de notas em Markdown (o formato universal do Sinapse, descrito em <code>FORMATO.md</code>) compactada em .zip. É o que o Claude produz.</p>
+      <p className="sub">O pacote é uma pasta de notas em Markdown (o formato universal do resumo.com, descrito em <code>FORMATO.md</code>) compactada em .zip. É o que o Claude produz.</p>
       <label
         className={"soltar" + (sobre ? " sobre" : "")}
         onDragOver={(e) => { e.preventDefault(); setSobre(true); }}
@@ -113,7 +113,7 @@ function ImportarPacote() {
             <summary>Notas do pacote ({v.notas.length})</summary>
             <ul className="lista-compacta">
               {v.notas.map((n) => (
-                <li key={n.titulo}><span>{n.titulo} {n.prova && <Selo tipo="prova">prova</Selo>}</span><small>{n.nova ? "nova" : "atualiza"} · {n.palavras} palavras · {n.flashcards} cartas</small></li>
+                <li key={n.titulo}><span>{n.titulo} {n.prova && <Selo tipo="prova">prova</Selo>}</span><small>{n.nova ? "nova" : "atualiza"} · {n.palavras} palavras · {n.flashcards} flashcards</small></li>
               ))}
             </ul>
           </details>
@@ -333,10 +333,10 @@ export function Gerar() {
     <div className="colunas-admin colunas-gerar">
       <section className="cartao">
         <h2 className="titulo-secao"><Icone nome="robo" tam={17} /> Novo resumo a partir dos materiais</h2>
-        <p className="sub">Você entrega os PDFs e slides da matéria e diz o que cai na prova. O servidor abre uma instância do Claude Code neste computador, ela escreve o resumo no padrão do Sinapse, o validador confere e o resultado entra no site.</p>
+        <p className="sub">Você entrega os PDFs e slides da matéria e diz o que cai na prova. O servidor abre uma instância do Claude Code neste computador, ela escreve o resumo no padrão do resumo.com, o validador confere e o resultado entra no site.</p>
         {claude && (
           <div className={"alerta " + (claude.disponivel ? "alerta-ok" : "alerta-erro")} data-testid="claude-status">
-            {claude.disponivel ? <>Claude Code encontrado: <code>{claude.versao}</code></> : <>Não encontrei o Claude Code (<code>{claude.bin}</code>) no computador onde o servidor roda. Rode o Sinapse na sua máquina, ou gere pela linha de comando e envie com um token.</>}
+            {claude.disponivel ? <>Claude Code encontrado: <code>{claude.versao}</code></> : <>Não encontrei o Claude Code (<code>{claude.bin}</code>) no computador onde o servidor roda. Rode o resumo.com na sua máquina, ou gere pela linha de comando e envie com um token.</>}
           </div>
         )}
         <form onSubmit={enviar} className="form-coluna">
