@@ -46,7 +46,7 @@ export function registrarAdmin(app, { db, config }) {
 
   // ---------- usuários ----------
   const linhaUsuario = (u) => ({
-    id: u.id, email: u.email, nome: u.nome, papel: u.papel, ativo: !!u.ativo, expiraEm: u.expira_em, acessoTotal: !!u.acesso_total, criadoEm: u.criado_em, ultimoAcesso: u.ultimo_acesso,
+    id: u.id, email: u.email, nome: u.nome, papel: u.papel, ativo: !!u.ativo, expiraEm: u.expira_em, acessoTotal: !!u.acesso_total, criadoEm: u.criado_em, ultimoAcesso: u.ultimo_acesso, senhaProvisoria: !!u.senha_provisoria,
     etiqueta: etiquetaDe(u.id),
     materias: db.prepare("select materia_id from user_materias where user_id = ?").all(u.id).map((r) => r.materia_id),
     sessoes: db.prepare("select count(*) c from sessoes where user_id = ? and expira_em > ?").get(u.id, Date.now()).c,
@@ -63,7 +63,7 @@ export function registrarAdmin(app, { db, config }) {
     exigirAdmin(req);
     const b = req.body || {};
     const senha = b.senha ? String(b.senha) : gerarSenha();
-    const id = criarUsuario(db, { email: b.email, nome: b.nome, senha, papel: b.papel === "admin" ? "admin" : "aluno", expiraEm: b.expiraEm ? Number(b.expiraEm) : null, acessoTotal: b.acessoTotal !== false, materias: Array.isArray(b.materias) ? b.materias : [] });
+    const id = criarUsuario(db, { email: b.email, nome: b.nome, senha, papel: b.papel === "admin" ? "admin" : "aluno", expiraEm: b.expiraEm ? Number(b.expiraEm) : null, acessoTotal: b.acessoTotal !== false, materias: Array.isArray(b.materias) ? b.materias : [], provisoria: true });
     return { usuario: linhaUsuario(db.prepare("select * from users where id = ?").get(id)), senha };
   });
 
@@ -89,7 +89,8 @@ export function registrarAdmin(app, { db, config }) {
     if (b.novaSenha) {
       senha = b.novaSenha === true ? gerarSenha() : String(b.novaSenha);
       if (senha.length < 8) throw new HttpError(400, "a senha precisa ter pelo menos 8 caracteres");
-      db.prepare("update users set senha_hash = ? where id = ?").run(hashSenha(senha), u.id);
+      // senha dada pelo administrador é provisória: a pessoa cria a dela ao entrar
+      db.prepare("update users set senha_hash = ?, senha_provisoria = ? where id = ?").run(hashSenha(senha), u.id === eu.id ? 0 : 1, u.id);
     }
     // desativar, trocar senha ou pedir: derruba as sessões abertas
     if (b.ativo === false || b.novaSenha || b.encerrarSessoes) db.prepare("delete from sessoes where user_id = ? and token_hash != ?").run(u.id, u.id === eu.id ? req.sessaoHash || "" : "");
@@ -108,7 +109,8 @@ export function registrarAdmin(app, { db, config }) {
   app.get("/api/admin/materias", async (req) => {
     exigirAdmin(req);
     const materias = db.prepare("select * from materias order by semestre, nome").all().map((m) => ({
-      id: m.id, nome: m.nome, semestre: m.semestre, eixo: m.eixo, descricao: m.descricao, cor: m.cor, provaData: m.prova_data, provaFoco: m.prova_foco, atualizadoEm: m.atualizado_em,
+      id: m.id, nome: m.nome, semestre: m.semestre, eixo: m.eixo, descricao: m.descricao, cor: m.cor, provaData: m.prova_data, provaFoco: m.prova_foco, n2Data: m.n2_data, n2Foco: m.n2_foco, atualizadoEm: m.atualizado_em,
+      modulos: db.prepare("select slug, titulo, avaliacao from modulos where materia_id = ? order by ordem, titulo").all(m.id),
       ...db.prepare("select count(*) notas, coalesce(sum(prova), 0) deProva, coalesce(sum(publicada = 0), 0) rascunhos from notas where materia_id = ?").get(m.id),
       flashcards: db.prepare("select count(*) c from flashcards where materia_id = ?").get(m.id).c,
     }));
@@ -139,12 +141,27 @@ export function registrarAdmin(app, { db, config }) {
     const cor = b.cor != null ? String(b.cor).trim() : m.cor;
     if (cor && !/^#[0-9a-f]{6}$/i.test(cor)) throw new HttpError(400, "cor inválida");
     const data = "provaData" in b ? (b.provaData ? String(b.provaData) : null) : m.prova_data;
-    if (data && !/^\d{4}-\d{2}-\d{2}$/.test(data)) throw new HttpError(400, "data da prova inválida");
-    db.prepare("update materias set nome = ?, semestre = ?, eixo = ?, descricao = ?, cor = ?, prova_data = ?, prova_foco = ?, atualizado_em = ? where id = ?").run(
-      String(b.nome ?? m.nome).trim() || m.nome, semestre, String(b.eixo ?? m.eixo), String(b.descricao ?? m.descricao), cor, data, String(b.provaFoco ?? m.prova_foco), Date.now(), m.id
+    const data2 = "n2Data" in b ? (b.n2Data ? String(b.n2Data) : null) : m.n2_data;
+    for (const d of [data, data2]) if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) throw new HttpError(400, "data da prova inválida");
+    db.prepare("update materias set nome = ?, semestre = ?, eixo = ?, descricao = ?, cor = ?, prova_data = ?, prova_foco = ?, n2_data = ?, n2_foco = ?, atualizado_em = ? where id = ?").run(
+      String(b.nome ?? m.nome).trim() || m.nome, semestre, String(b.eixo ?? m.eixo), String(b.descricao ?? m.descricao), cor, data, String(b.provaFoco ?? m.prova_foco), data2, String(b.n2Foco ?? m.n2_foco), Date.now(), m.id
     );
     conteudo.versao++;
     return { ok: true };
+  });
+
+  // A que avaliação pertence cada módulo. Sem "modulo", vale para a matéria inteira.
+  app.post("/api/admin/materias/:id/avaliacao", async (req) => {
+    exigirAdmin(req);
+    const b = req.body || {};
+    const av = String(b.avaliacao || "").toLowerCase();
+    if (av !== "n1" && av !== "n2") throw new HttpError(400, "a avaliação precisa ser n1 ou n2");
+    const r = b.modulo
+      ? db.prepare("update modulos set avaliacao = ? where materia_id = ? and slug = ?").run(av, req.params.id, String(b.modulo))
+      : db.prepare("update modulos set avaliacao = ? where materia_id = ?").run(av, req.params.id);
+    if (!r.changes) throw new HttpError(404, "módulo não encontrado");
+    conteudo.versao++;
+    return { alterados: r.changes };
   });
 
   app.delete("/api/admin/materias/:id", async (req) => {
@@ -173,7 +190,7 @@ export function registrarAdmin(app, { db, config }) {
     exigirAdmin(req);
     const notas = db
       .prepare(
-        `select n.id, n.slug, n.titulo, n.resumo, n.prova, n.prioridade, n.publicada, n.minutos, n.pdf, n.ordem, n.atualizado_em, mo.titulo modulo, mo.id modulo_id,
+        `select n.id, n.slug, n.titulo, n.resumo, n.prova, n.prioridade, n.publicada, n.minutos, n.pdf, n.ordem, n.atualizado_em, mo.titulo modulo, mo.id modulo_id, mo.slug modulo_slug, mo.avaliacao,
            (select count(*) from flashcards f where f.nota_id = n.id) cards
          from notas n join modulos mo on mo.id = n.modulo_id where n.materia_id = ? order by mo.ordem, mo.titulo, n.ordem, n.titulo`
       )
@@ -359,7 +376,7 @@ export function registrarAdmin(app, { db, config }) {
     const mudar = db.prepare("update geracoes set status = ? where id = ?");
     gerarResumo(db, config, {
       id, materia: { slug: mslug, nome, semestre }, materiais: arquivos.map((a) => ({ nome: a.nome, bytes: a.bytes })),
-      conteudosProva: pedido.conteudosProva, instrucoes: pedido.instrucoes, rascunho: pedido.rascunho, sinal: controle.signal,
+      conteudosProva: pedido.conteudosProva, instrucoes: pedido.instrucoes, rascunho: pedido.rascunho, avaliacao: String(campos.avaliacao || ""), sinal: controle.signal,
       aoLogar: (linha) => logar.run(`[${new Date().toLocaleTimeString("pt-BR", { hour12: false })}] ${linha}\n`, id),
       aoMudar: (status) => mudar.run(status, id),
     })
