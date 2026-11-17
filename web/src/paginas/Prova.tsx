@@ -1,9 +1,10 @@
-// Modo prova: só o conteúdo emergencial de uma matéria. Por nota de prova, o bloco "essencial";
-// depois as dicas de prova, as questões e as cartas das notas de prova.
-import { useEffect, useState } from "react";
+// Modo prova: só o conteúdo emergencial, separado por avaliação (N1 e N2). Por nota de prova, o
+// bloco "essencial"; depois as dicas de prova, as questões e as cartas das notas de prova.
+import { useEffect, useMemo, useState } from "react";
 import { api, mensagem, type ProvaDados } from "../lib/api";
+import { nomeAv, provasDe } from "../lib/avaliacao";
 import { dataCurta, diasAte, plural, textoProva, useApp } from "../lib/loja";
-import { Link } from "../lib/rota";
+import { Link, ir, useBusca } from "../lib/rota";
 import { ConteudoNota } from "../componentes/ConteudoNota";
 import { Icone } from "../componentes/Icone";
 import { Barra, Carregando, Selo, Vazio } from "../componentes/ui";
@@ -13,32 +14,39 @@ const PRIORIDADE: Record<number, string> = { 1: "Prioridade alta", 2: "Prioridad
 export function ProvaLista() {
   const { bib, idx } = useApp();
   if (!bib) return <Carregando />;
-  const materias = bib.materias
-    .map((m) => {
-      const notas = (idx.notasDaMateria.get(m.id) || []).filter((n) => n.prova);
-      return { m, notas, lidas: notas.filter((n) => idx.lidas.has(n.id)).length, dias: diasAte(m.prova_data) };
-    })
+  // uma prova por matéria e por avaliação que tenha conteúdo marcado
+  const provas = bib.materias
+    .flatMap((m) =>
+      provasDe(m, idx).map((p) => {
+        const mods = new Set((idx.modulosDe.get(m.id) || []).filter((x) => x.avaliacao === p.av).map((x) => x.id));
+        const notas = (idx.notasDaMateria.get(m.id) || []).filter((n) => n.prova && mods.has(n.modulo));
+        return { m, ...p, notas, lidas: notas.filter((n) => idx.lidas.has(n.id)).length };
+      })
+    )
     .filter((x) => x.notas.length)
-    .sort((a, b) => (a.dias ?? 9999) - (b.dias ?? 9999) || a.m.semestre - b.m.semestre);
+    .sort((a, b) => {
+      const passou = (x: typeof a) => (x.dias !== null && x.dias < 0 ? 1 : 0);
+      return passou(a) - passou(b) || (a.dias ?? 9999) - (b.dias ?? 9999) || a.m.semestre - b.m.semestre || a.av.localeCompare(b.av);
+    });
   return (
     <div className="pagina">
       <header className="cabeca-pagina">
         <div>
           <p className="olho">Modo prova</p>
           <h1 className="titulo-pagina">O que é emergencial</h1>
-          <p className="sub">Só o que foi marcado como conteúdo de prova, na ordem de prioridade.</p>
+          <p className="sub">Só o que foi marcado como conteúdo de prova, por avaliação (N1 e N2) e na ordem de prioridade.</p>
         </div>
       </header>
-      {!materias.length && <Vazio icone="prova" titulo="Nenhum conteúdo de prova marcado">Quando uma matéria tiver notas marcadas como prova, ela aparece aqui.</Vazio>}
+      {!provas.length && <Vazio icone="prova" titulo="Nenhum conteúdo de prova marcado">Quando uma matéria tiver notas marcadas como prova, ela aparece aqui.</Vazio>}
       <div className="grade-prova">
-        {materias.map(({ m, notas, lidas, dias }) => (
-          <Link key={m.id} para={"/prova/" + m.id} className={"cartao cartao-prova" + (dias !== null && dias >= 0 && dias <= 7 ? " urgente" : "")} data-materia={m.id}>
-            <span className="rotulo"><i className="ponto" style={{ background: idx.cor(m.id) }} /> {m.semestre}º semestre</span>
+        {provas.map(({ m, av, data, dias, notas, lidas }) => (
+          <Link key={m.id + av} para={`/prova/${m.id}?av=${av}`} className={"cartao cartao-prova" + (dias !== null && dias >= 0 && dias <= 7 ? " urgente" : "")} data-materia={m.id} data-av={av}>
+            <span className="rotulo"><i className="ponto" style={{ background: idx.cor(m.id) }} /> {m.semestre}º semestre <b className="sigla-av">{nomeAv(av)}</b></span>
             <h3>{m.nome}</h3>
             {dias !== null ? (
-              <p className="contagem"><strong>{dias < 0 ? "–" : dias}</strong> {dias < 0 ? "prova já passou" : dias === 1 ? "dia para a prova" : "dias para a prova"}<small>{dataCurta(m.prova_data!)}</small></p>
+              <p className="contagem"><strong>{dias < 0 ? "–" : dias}</strong> {dias < 0 ? "prova já passou" : dias === 1 ? "dia para a prova" : "dias para a prova"}<small>{nomeAv(av)} · {dataCurta(data!)}</small></p>
             ) : (
-              <p className="contagem sem-data">Sem data de prova definida</p>
+              <p className="contagem sem-data">{nomeAv(av)} sem data de prova definida</p>
             )}
             <Barra valor={lidas} total={notas.length} cor="var(--ambar)" />
             <span className="sub">{lidas} de {plural(notas.length, "nota de prova lida", "notas de prova lidas")}</span>
@@ -51,6 +59,8 @@ export function ProvaLista() {
 
 export function ProvaMateria({ id }: { id: string }) {
   const { idx, marcarLida } = useApp();
+  const busca = useBusca();
+  const pedida = useMemo(() => new URLSearchParams(busca).get("av") || "", [busca]);
   const [dados, setDados] = useState<ProvaDados | null>(null);
   const [erro, setErro] = useState("");
   const [aba, setAba] = useState<"essencial" | "dicas" | "questoes">("essencial");
@@ -59,15 +69,15 @@ export function ProvaMateria({ id }: { id: string }) {
     let vivo = true;
     setDados(null);
     setErro("");
-    api.get<ProvaDados>("/api/prova/" + id).then((d) => vivo && setDados(d)).catch((e) => vivo && setErro(mensagem(e)));
+    api.get<ProvaDados>("/api/prova/" + id + (pedida ? "?av=" + pedida : "")).then((d) => vivo && setDados(d)).catch((e) => vivo && setErro(mensagem(e)));
     return () => {
       vivo = false;
     };
-  }, [id]);
+  }, [id, pedida]);
 
   if (erro) return <div className="pagina"><Vazio icone="alerta" titulo="Não foi possível abrir">{erro}</Vazio></div>;
   if (!dados) return <div className="pagina"><Carregando /></div>;
-  const { materia, notas } = dados;
+  const { materia, notas, av } = dados;
   const dias = diasAte(materia.provaData);
   const lidas = notas.filter((n) => idx.lidas.has(n.id)).length;
   const cartas = notas.reduce((s, n) => s + (idx.nota.get(n.id)?.cards || 0), 0);
@@ -77,22 +87,31 @@ export function ProvaMateria({ id }: { id: string }) {
     <div className="pagina pagina-prova">
       <header className={"heroi heroi-prova-modo" + (dias !== null && dias >= 0 && dias <= 7 ? " urgente" : "")}>
         <Link para="/prova" className="voltar"><Icone nome="esquerda" tam={15} /> Modo prova</Link>
-        <p className="olho"><Icone nome="raio" tam={14} /> Conteúdo emergencial</p>
+        <p className="olho"><Icone nome="raio" tam={14} /> Conteúdo emergencial · {nomeAv(av)}</p>
         <h1>{materia.nome}</h1>
+        {dados.avaliacoes.length > 1 && (
+          <div className="alternador alternador-av" role="group" aria-label="Avaliação">
+            {dados.avaliacoes.map((a) => (
+              <button type="button" key={a.av} className={a.av === av ? "ativo" : ""} onClick={() => ir(`/prova/${id}?av=${a.av}`, { manterRolagem: true })} data-av={a.av}>
+                {nomeAv(a.av)} <small>{a.notas}</small>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="heroi-dados">
-          {dias !== null && <span className="heroi-prova"><Icone nome="prova" tam={15} /> {textoProva(dias)} · {dataCurta(materia.provaData!)}</span>}
+          {dias !== null && <span className="heroi-prova"><Icone nome="prova" tam={15} /> {nomeAv(av)}: {textoProva(dias)} · {dataCurta(materia.provaData!)}</span>}
           <span><b>{notas.length}</b> notas de prova</span>
           <span><b>{lidas}</b> lidas</span>
           <span><b>~{minutos} min</b> para ler tudo</span>
         </div>
         {materia.provaFoco && (
           <div className="foco">
-            <span className="rotulo">O que cai</span>
+            <span className="rotulo">O que cai na {nomeAv(av)}</span>
             <p>{materia.provaFoco}</p>
           </div>
         )}
         <div className="heroi-acoes">
-          {cartas > 0 && <Link para={`/flashcards/${id}?modo=prova`} className="botao claro"><Icone nome="cartas" tam={16} /> Flashcards da prova ({cartas})</Link>}
+          {cartas > 0 && <Link para={`/flashcards/${id}?modo=prova&av=${av}`} className="botao claro"><Icone nome="cartas" tam={16} /> Flashcards da prova ({cartas})</Link>}
           <Link para={"/materia/" + id} className="botao vidro"><Icone nome="estante" tam={16} /> Matéria completa</Link>
         </div>
       </header>
