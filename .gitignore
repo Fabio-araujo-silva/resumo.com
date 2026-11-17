@@ -1,0 +1,12 @@
+node_modules/
+web/dist/
+test-results/
+playwright-report/
+.env
+*.log
+
+# dados da plataforma (banco, figuras, PDFs, pastas de geração)
+dados/
+
+# os resumos em si não são versionados: o conteúdo só existe dentro da plataforma
+conteudo/
