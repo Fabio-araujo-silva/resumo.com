@@ -46,6 +46,20 @@ test("acessos: criar um login, a pessoa entra; desativar derruba; senha nova", a
   await entrar(carla, { email: "carla@e2e.com", senha });
   await expect(carla.locator(".capa")).toHaveCount(1);
   await expect(carla.locator(".capa h3")).toHaveText("Anatomia");
+  // a senha que o administrador mandou é provisória: ela precisa criar a dela antes de usar
+  const criar = carla.locator("[data-testid=criar-senha]");
+  await expect(criar).toContainText("senha provisória");
+  await criar.locator('input[name="nova"]').fill("carla-senha-1");
+  await criar.locator('input[name="repetir"]').fill("carla-senha-2");
+  await criar.locator("button.primario").click();
+  await expect(criar.locator(".alerta-erro")).toContainText("não são iguais");
+  await criar.locator('input[name="repetir"]').fill("carla-senha-1");
+  await criar.locator("button.primario").click();
+  await expect(criar).toHaveCount(0);
+  await expect(linha).toContainText("senha provisória");
+  await page.reload();
+  await expect(tabela.locator('tr[data-usuario="carla@e2e.com"]')).not.toContainText("senha provisória");
+  const dela = "carla-senha-1";
 
   // desativar: a sessão dela cai e o login é recusado
   await linha.locator('button[aria-label="Desativar Carla Dias"]').click();
@@ -53,7 +67,7 @@ test("acessos: criar um login, a pessoa entra; desativar derruba; senha nova", a
   await carla.goto("/estante");
   await expect(carla.locator(".entrar")).toBeVisible();
   await carla.fill('input[name="email"]', "carla@e2e.com");
-  await carla.fill('input[name="senha"]', senha);
+  await carla.fill('input[name="senha"]', dela);
   await carla.click("button.primario");
   await expect(carla.locator(".alerta-erro")).toContainText("desativado");
 
@@ -64,12 +78,13 @@ test("acessos: criar um login, a pessoa entra; desativar derruba; senha nova", a
   await linha.locator('button[aria-label="Gerar senha nova para Carla Dias"]').click();
   const nova = (await page.locator("[data-testid=credenciais]").innerText()).match(/Senha: (\S+)/)[1];
   expect(nova).not.toBe(senha);
-  await carla.fill('input[name="senha"]', senha);
+  await carla.fill('input[name="senha"]', dela);
   await carla.click("button.primario");
   await expect(carla.locator(".alerta-erro")).toContainText("incorretos");
   await carla.fill('input[name="senha"]', nova);
   await carla.click("button.primario");
   await expect(carla.locator(".app")).toBeVisible();
+  await expect(carla.locator("[data-testid=criar-senha]")).toBeVisible(); // senha nova do administrador: provisória de novo
   await ctx.close();
 });
 

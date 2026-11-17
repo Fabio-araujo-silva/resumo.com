@@ -12,7 +12,7 @@ test("modo prova: só o emergencial, por prioridade, com dicas e questões", asy
   await expect(cartao).toContainText("dias para a prova");
   await expect(page.locator(".cartao-prova")).toHaveCount(1); // fisiologia não tem conteúdo de prova
   await cartao.click();
-  await expect(page).toHaveURL(/\/prova\/anatomia$/);
+  await expect(page).toHaveURL(/\/prova\/anatomia\?av=n1$/);
   await expect(page.locator(".heroi h1")).toHaveText("Anatomia");
   await expect(page.locator(".foco")).toContainText("Plexo braquial e manguito.");
 
@@ -38,8 +38,8 @@ test("modo prova: só o emergencial, por prioridade, com dicas e questões", asy
 
   // cartas só das notas de prova
   await page.locator(".heroi-acoes a", { hasText: "Flashcards da prova" }).click();
-  await expect(page).toHaveURL(/\/flashcards\/anatomia\?modo=prova$/);
-  await expect(page.locator(".estudo-titulo strong")).toHaveText("Cartas da prova");
+  await expect(page).toHaveURL(/\/flashcards\/anatomia\?modo=prova&av=n1$/);
+  await expect(page.locator(".estudo-titulo strong")).toHaveText("Cartas da prova N1");
   await expect(page.locator("[data-testid=carta]")).toBeVisible();
 });
 
