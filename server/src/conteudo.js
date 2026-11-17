@@ -88,11 +88,11 @@ export function registrarConteudo(app, { db, config }) {
       const nCards = new Map(db.prepare("select nota_id, count(*) c from flashcards group by nota_id").all().map((r) => [r.nota_id, r.c]));
       return {
         materias: db
-          .prepare("select id, nome, semestre, eixo, descricao, cor, prova_data from materias order by semestre, nome")
+          .prepare("select id, nome, semestre, eixo, descricao, cor, prova_data, n2_data from materias order by semestre, nome")
           .all()
           .filter((m) => v.podeMateria(m.id) && (v.admin || notas.some((n) => n.materia_id === m.id))),
         modulos: db
-          .prepare("select id, materia_id, titulo, descricao, ordem from modulos order by ordem, titulo")
+          .prepare("select id, materia_id, titulo, descricao, ordem, avaliacao from modulos order by ordem, titulo")
           .all()
           .filter((m) => comNota.has(m.id)),
         notas: notas.map((n) => {
@@ -174,7 +174,7 @@ export function registrarConteudo(app, { db, config }) {
     const lidas = new Set(q.lidas.all(user.id).map((r) => r.nota_id));
     const pronto = comCache(v.chave && "prova:" + v.chave + ":" + m.id, () => {
       const notas = db
-        .prepare("select n.*, mo.titulo modulo from notas n join modulos mo on mo.id = n.modulo_id where n.materia_id = ? and n.prova = 1 order by n.prioridade, mo.ordem, mo.titulo, n.ordem, n.titulo")
+        .prepare("select n.*, mo.titulo modulo, mo.avaliacao from notas n join modulos mo on mo.id = n.modulo_id where n.materia_id = ? and n.prova = 1 order by n.prioridade, mo.ordem, mo.titulo, n.ordem, n.titulo")
         .all(m.id)
         .filter(v.podeNota);
       const resolver = criarResolver(db, m.id, { pode: v.podeNota });
@@ -184,10 +184,10 @@ export function registrarConteudo(app, { db, config }) {
       const lista = notas.map((n) => {
         const a = analisar(n.md);
         const ref = { id: n.id, titulo: n.titulo };
-        for (const d of extrairCallouts(a.corpo, ["prova", "dica"])) dicas.push({ nota: ref, titulo: d.titulo, html: renderTrecho(d.md, ctx) });
-        for (const qt of a.questoes) questoes.push({ nota: ref, html: htmlQuestao(qt, ctx) });
+        for (const d of extrairCallouts(a.corpo, ["prova", "dica"])) dicas.push({ av: n.avaliacao, nota: ref, titulo: d.titulo, html: renderTrecho(d.md, ctx) });
+        for (const qt of a.questoes) questoes.push({ av: n.avaliacao, nota: ref, html: htmlQuestao(qt, ctx) });
         return {
-          id: n.id, titulo: n.titulo, resumo: n.resumo, modulo: n.modulo, prioridade: n.prioridade, minutos: n.minutos,
+          id: n.id, titulo: n.titulo, resumo: n.resumo, modulo: n.modulo, av: n.avaliacao, prioridade: n.prioridade, minutos: n.minutos,
           // sai como o próprio bloco "essencial" (o leitor transforma os itens em "já sei")
           essencial: extrairCallouts(a.corpo, ["essencial"]).map((e) => renderTrecho([`> [!essencial] ${e.titulo}`, ...e.md.split("\n").map((l) => "> " + l)].join("\n"), ctx)),
         };
@@ -196,11 +196,21 @@ export function registrarConteudo(app, { db, config }) {
     });
     if (pronto.notas.length) registrarAcesso(user, "prova:" + m.id, req.ip, "prova");
     const marca = (h) => (user.papel === "admin" ? h : marcarHtml(h, etiquetaDe(user.id)));
+    // cada avaliação (N1, N2) tem suas notas, sua data e seu foco
+    const prova = { n1: { data: m.prova_data, foco: m.prova_foco }, n2: { data: m.n2_data, foco: m.n2_foco } };
+    const avaliacoes = ["n1", "n2"].map((av) => ({ av, notas: pronto.notas.filter((n) => n.av === av).length, data: prova[av].data })).filter((a) => a.notas);
+    const hoje = new Date().toISOString().slice(0, 10);
+    // sem escolha: a avaliação com prova marcada mais próxima; senão, a primeira que tem conteúdo
+    const pedida = String(req.query.av || "").toLowerCase();
+    const proxima = avaliacoes.filter((a) => a.data && a.data >= hoje).sort((a, b) => a.data.localeCompare(b.data))[0];
+    const av = avaliacoes.some((a) => a.av === pedida) ? pedida : (proxima || avaliacoes[0] || { av: "n1" }).av;
     return {
-      materia: { id: m.id, nome: m.nome, cor: m.cor, semestre: m.semestre, provaData: m.prova_data, provaFoco: m.prova_foco },
-      notas: pronto.notas.map((n) => ({ ...n, essencial: n.essencial.map(marca), lida: lidas.has(n.id) })),
-      dicas: pronto.dicas,
-      questoes: pronto.questoes,
+      materia: { id: m.id, nome: m.nome, cor: m.cor, semestre: m.semestre, provaData: prova[av].data, provaFoco: prova[av].foco },
+      av,
+      avaliacoes,
+      notas: pronto.notas.filter((n) => n.av === av).map((n) => ({ ...n, essencial: n.essencial.map(marca), lida: lidas.has(n.id) })),
+      dicas: pronto.dicas.filter((d) => d.av === av),
+      questoes: pronto.questoes.filter((q) => q.av === av),
     };
   });
 
