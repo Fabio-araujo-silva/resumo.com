@@ -7,7 +7,11 @@ import { renderTrecho } from "./markdown.js";
 import { criarResolver } from "./importar.js";
 
 export function registrarFlashcards(app, { db, config, agora = () => Date.now() }) {
-  const cfg = { ...PADRAO, fusoMin: config.fusoMin };
+  const base0 = { ...PADRAO, fusoMin: config.fusoMin };
+  let cfg = base0; // trocado a cada pedido pelo limite diário de quem está estudando
+  const LIMITE_MIN = 5;
+  const LIMITE_MAX = 500;
+  const cfgDe = (user) => ({ ...base0, novosPorDia: Math.min(LIMITE_MAX, Math.max(LIMITE_MIN, user.novos_por_dia || PADRAO.novosPorDia)) });
 
   // filtro: { materia, nota?, prova? }. Monta o trecho SQL comum a todas as consultas da fila.
   function base(user, f) {
@@ -19,6 +23,10 @@ export function registrarFlashcards(app, { db, config, agora = () => Date.now() 
       args.push(f.nota);
     }
     if (f.prova) cond.push("n.prova = 1");
+    if (f.av) {
+      cond.push("mo.avaliacao = ?");
+      args.push(f.av);
+    }
     return {
       sql: `from flashcards f join notas n on n.id = f.nota_id join modulos mo on mo.id = n.modulo_id
             left join estados_card e on e.card_id = f.id and e.user_id = ? where ${cond.join(" and ")}`,
@@ -41,7 +49,7 @@ export function registrarFlashcards(app, { db, config, agora = () => Date.now() 
     const revisarTotal = um("e.estado = 'revisao' and e.vence <= ?", fimHoje);
     const revisar = Math.max(0, Math.min(revisarTotal, cfg.revisoesPorDia - feito("revisao")));
     const aprendendo = um("e.estado in ('aprendendo', 'reaprendendo')");
-    return { novos, aprendendo, revisar, total: um("1 = 1"), fimHoje };
+    return { novos, aprendendo, revisar, total: um("1 = 1"), fimHoje, novasRestantes: novosTotal - novos };
   }
 
   function proxima(user, f, t) {
@@ -53,7 +61,8 @@ export function registrarFlashcards(app, { db, config, agora = () => Date.now() 
     if (!carta && c.revisar > 0) carta = pegar("e.estado = 'revisao' and e.vence <= ?", "e.vence, f.id", c.fimHoje);
     if (!carta && c.novos > 0) carta = pegar("e.card_id is null", "mo.ordem, mo.titulo, n.ordem, n.titulo, f.ordem");
     if (!carta) carta = pegar("e.estado in ('aprendendo', 'reaprendendo') and e.vence <= ?", "e.vence", t + cfg.aprenderAdianteMin * 60000);
-    const contagem = { novos: c.novos, aprendendo: c.aprendendo, revisar: c.revisar, total: c.total };
+    // novasRestantes: cartas nunca vistas que ficaram para outro dia por causa do limite diário
+    const contagem = { novos: c.novos, aprendendo: c.aprendendo, revisar: c.revisar, total: c.total, novasRestantes: c.novasRestantes, limite: cfg.novosPorDia };
     if (!carta) {
       const prox = db.prepare(`select min(e.vence) v ${b.sql} and e.estado in ('aprendendo', 'reaprendendo')`).get(...b.args).v;
       return { carta: null, contagem, proximaEm: prox || null };
@@ -79,11 +88,14 @@ export function registrarFlashcards(app, { db, config, agora = () => Date.now() 
     const materia = String(origem.materia || "");
     const lib = materiasLiberadas(db, user);
     if (!materia || !db.prepare("select 1 from materias where id = ?").get(materia) || (lib && !lib.has(materia))) throw new HttpError(404, "matéria não encontrada");
-    return { user, f: { materia, nota: origem.nota ? String(origem.nota) : null, prova: origem.modo === "prova" } };
+    cfg = cfgDe(user);
+    const av = String(origem.av || "").toLowerCase();
+    return { user, f: { materia, nota: origem.nota ? String(origem.nota) : null, prova: origem.modo === "prova", av: av === "n1" || av === "n2" ? av : null } };
   }
 
   app.get("/api/flashcards/baralhos", async (req) => {
     const user = exigirUsuario(req);
+    cfg = cfgDe(user);
     const lib = materiasLiberadas(db, user);
     const t = agora();
     const materias = db.prepare("select id, nome, semestre, cor, prova_data from materias order by semestre, nome").all().filter((m) => !lib || lib.has(m.id));
@@ -94,7 +106,11 @@ export function registrarFlashcards(app, { db, config, agora = () => Date.now() 
       const estudadas = db.prepare("select count(*) c from estados_card e join flashcards f on f.id = e.card_id where e.user_id = ? and f.materia_id = ?").get(user.id, m.id).c;
       const maduras = db.prepare("select count(*) c from estados_card e join flashcards f on f.id = e.card_id where e.user_id = ? and f.materia_id = ? and e.estado = 'revisao' and e.intervalo >= 21").get(user.id, m.id).c;
       const deProva = db.prepare("select count(*) c from flashcards f join notas n on n.id = f.nota_id where f.materia_id = ? and n.prova = 1 and n.publicada = 1").get(m.id).c;
-      baralhos.push({ materia: m.id, nome: m.nome, semestre: m.semestre, cor: m.cor, novos: c.novos, aprendendo: c.aprendendo, revisar: c.revisar, total: c.total, estudadas, maduras, deProva });
+      // quantas cartas cada avaliação (N1, N2) tem nesta matéria
+      const avaliacoes = db
+        .prepare("select mo.avaliacao av, count(*) cartas from flashcards f join notas n on n.id = f.nota_id join modulos mo on mo.id = n.modulo_id where f.materia_id = ? and n.publicada = 1 group by mo.avaliacao order by mo.avaliacao")
+        .all(m.id);
+      baralhos.push({ materia: m.id, nome: m.nome, semestre: m.semestre, cor: m.cor, novos: c.novos, aprendendo: c.aprendendo, revisar: c.revisar, total: c.total, novasRestantes: c.novasRestantes, estudadas, maduras, deProva, avaliacoes });
     }
     // estatísticas gerais
     const hoje = diaDe(t, cfg);
@@ -107,7 +123,16 @@ export function registrarFlashcards(app, { db, config, agora = () => Date.now() 
     const semana = [];
     for (let d = hoje - 6; d <= hoje; d++)
       semana.push({ dia: new Date(inicioDoDia(d, cfg) + 12 * 3600000).toISOString().slice(0, 10), n: db.prepare("select count(*) c from revisoes where user_id = ? and em >= ? and em < ?").get(user.id, inicioDoDia(d, cfg), inicioDoDia(d + 1, cfg)).c });
-    return { baralhos, estatisticas: { feitasHoje, sequencia, retencao: mes.total ? Math.round((mes.certas / mes.total) * 100) : null, semana } };
+    return { baralhos, limite: { novosPorDia: cfg.novosPorDia, padrao: PADRAO.novosPorDia, minimo: LIMITE_MIN, maximo: LIMITE_MAX }, estatisticas: { feitasHoje, sequencia, retencao: mes.total ? Math.round((mes.certas / mes.total) * 100) : null, semana } };
+  });
+
+  // O assinante escolhe quantas cartas novas quer por dia (o padrão do Anki é 20).
+  app.post("/api/flashcards/limite", async (req) => {
+    const user = exigirUsuario(req);
+    const n = Math.round(Number((req.body || {}).novosPorDia));
+    if (!Number.isFinite(n) || n < LIMITE_MIN || n > LIMITE_MAX) throw new HttpError(400, `escolha um número entre ${LIMITE_MIN} e ${LIMITE_MAX}`);
+    db.prepare("update users set novos_por_dia = ? where id = ?").run(n, user.id);
+    return { novosPorDia: n };
   });
 
   app.get("/api/flashcards/proxima", async (req) => {
