@@ -29,7 +29,7 @@ test("navegação pelas abas de baixo e páginas que cabem na tela", async ({ pa
   // a tabela larga rola dentro da própria caixa
   expect(await page.locator(".leitor .tabela").first().evaluate((e) => e.scrollWidth >= e.clientWidth)).toBe(true);
 
-  for (const [aba, seletor] of [["Notas", ".grafo canvas"], ["Prova", ".cartao-prova"], ["Cartas", ".tabela-baralhos"]]) {
+  for (const [aba, seletor] of [["Prova", ".cartao-prova"], ["Flashcards", ".tabela-baralhos"], ["Pendências", ".pagina"]]) {
     await page.locator(".abas-baixo a", { hasText: aba }).tap();
     await expect(page.locator(seletor).first()).toBeVisible();
     await semEstouro(page, aba);

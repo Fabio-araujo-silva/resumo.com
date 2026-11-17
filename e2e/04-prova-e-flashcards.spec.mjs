@@ -39,7 +39,7 @@ test("modo prova: só o emergencial, por prioridade, com dicas e questões", asy
   // cartas só das notas de prova
   await page.locator(".heroi-acoes a", { hasText: "Flashcards da prova" }).click();
   await expect(page).toHaveURL(/\/flashcards\/anatomia\?modo=prova&av=n1$/);
-  await expect(page.locator(".estudo-titulo strong")).toHaveText("Cartas da prova N1");
+  await expect(page.locator(".estudo-titulo strong")).toHaveText("Flashcards da prova N1");
   await expect(page.locator("[data-testid=carta]")).toBeVisible();
 });
 
@@ -107,7 +107,7 @@ test("flashcards: baralhos por matéria e sessão de estudo com os quatro botõe
 
 test("estudar só as cartas de uma nota", async ({ page }) => {
   await page.goto("/nota/fisiologia/potencial-de-acao");
-  await page.locator(".leitor-acoes a", { hasText: "Estudar as 2 cartas" }).click();
+  await page.locator(".leitor-acoes a", { hasText: "Estudar os 2 flashcards" }).click();
   await expect(page).toHaveURL(/\/flashcards\/fisiologia\?nota=/);
   await expect(page.locator(".estudo-titulo strong")).toHaveText("Potencial de ação");
   await expect(page.locator("[data-testid=contadores] span").first()).toHaveText("2");

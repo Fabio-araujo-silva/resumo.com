@@ -55,13 +55,14 @@ test("assinante: a matéria aparece separada em N1 e N2, com prova e cartas de c
 
   // grafo e flashcards filtram por avaliação
   await page.goto("/notas?materia=anatomia");
-  const antes = await page.locator("[data-testid=resumo-grafo]").innerText();
-  await page.locator('.filtros .chip[data-av="n2"]').click();
-  await expect(page.locator("[data-testid=resumo-grafo]")).not.toHaveText(antes);
+  await expect(page.locator("[data-testid=topicos]")).toContainText("Plexo braquial");
+  await page.locator('.explorar-topicos .chip[data-av="n2"]').click();
+  await expect(page.locator("[data-testid=topicos]")).toContainText("Nervo isquiático");
+  await expect(page.locator("[data-testid=topicos]")).not.toContainText("Plexo braquial");
   await page.goto("/flashcards");
   await page.locator('[data-baralho="anatomia"] a[data-av="n2"]').click();
   await expect(page).toHaveURL(/\/flashcards\/anatomia\?av=n2$/);
-  await expect(page.locator(".estudo-titulo strong")).toHaveText("Cartas da N2");
+  await expect(page.locator(".estudo-titulo strong")).toHaveText("Flashcards da N2");
 });
 
 test("limite diário de cartas novas: o assinante aumenta sozinho, na tela de baralhos e no fim do estudo", async ({ page }) => {
@@ -77,11 +78,11 @@ test("limite diário de cartas novas: o assinante aumenta sozinho, na tela de ba
   await expect(page.locator("[data-testid=limite-valor]")).toHaveText("60"); // fica guardado na conta
 
   // com um limite baixo, o baralho para cedo e oferece liberar mais
-  const r = await page.request.post("/api/flashcards/limite", { headers: { "x-sinapse": "1" }, data: { novosPorDia: 5 } });
+  const r = await page.request.post("/api/flashcards/limite", { headers: { "x-resumo": "1" }, data: { novosPorDia: 5 } });
   expect(r.status()).toBe(200);
   await page.goto("/flashcards");
   await expect(page.locator('[data-baralho="anatomia"] .num.novas')).toHaveText("5");
-  await expect(page.locator('[data-baralho="anatomia"] .baralho-nome small')).toContainText("novas esperando");
+  await expect(page.locator('[data-baralho="anatomia"] .baralho-nome small')).toContainText("novos esperando");
   await expect(page.locator("[data-testid=limite-diario]")).toContainText("esperando");
   await page.goto("/flashcards/anatomia");
   for (let i = 0; i < 5; i++) {

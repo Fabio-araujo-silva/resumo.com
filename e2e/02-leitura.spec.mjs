@@ -168,7 +168,7 @@ test("baralho da nota vira; foco, letra e atalhos funcionam", async ({ page }) =
   await vira.click();
   await expect(vira).toHaveClass(/virada/);
   await expect(vira.locator(".vira-face.verso")).toContainText("fascículo medial");
-  await page.locator('[data-testid=baralho-nota] button[aria-label="Próxima carta"]').click();
+  await page.locator('[data-testid=baralho-nota] button[aria-label="Próximo flashcard"]').click();
   await expect(vira).not.toHaveClass(/virada/);
   await expect(page.locator("[data-testid=baralho-nota] header .sub")).toContainText("2 de 2");
 
@@ -195,7 +195,7 @@ test("baralho da nota vira; foco, letra e atalhos funcionam", async ({ page }) =
   await expect(page).not.toHaveURL(/nervo-ulnar$/);
   await page.keyboard.press("ArrowLeft");
   await expect(page).toHaveURL(/nervo-ulnar$/);
-  if (await page.locator("[data-testid=ouvir]").count()) await expect(page.locator("[data-testid=ouvir]")).toContainText("Ouvir");
+  await expect(page.locator("[data-testid=ouvir]")).toContainText("Ouvir");
 });
 
 test("nota-mapa: grafo do módulo e links que levam direto à nota", async ({ page }) => {

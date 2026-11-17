@@ -12,7 +12,7 @@ import { pacoteAnatomia, pacoteFisiologia } from "../server/test/_ajuda.js";
 import { ADMIN, ANA, BIA, DUDA, NOTA_INTERATIVA, pdfDeTeste } from "./apoio.mjs";
 
 const aqui = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "sinapse-e2e-"));
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "resumo-e2e-"));
 const { app, db } = await montarApp({
   dataDir,
   logger: false,
@@ -21,6 +21,7 @@ const { app, db } = await montarApp({
   claudeTimeoutMin: 1,
   leiturasPor10Min: 1000,
   leiturasPorDia: 5000,
+  elevenlabsChave: "",
 });
 
 criarUsuario(db, { ...ADMIN, papel: "admin" });
@@ -37,7 +38,7 @@ importarPacote(db, dataDir, anatomia);
 importarPacote(db, dataDir, analisarPacote(pacoteFisiologia()));
 
 await app.listen({ port: 4399, host: "127.0.0.1" });
-console.log("Sinapse (testes) em http://127.0.0.1:4399 — dados em " + dataDir);
+console.log("resumo.com (testes) em http://127.0.0.1:4399 — dados em " + dataDir);
 const sair = async () => {
   await app.close();
   fs.rmSync(dataDir, { recursive: true, force: true });
