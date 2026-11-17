@@ -1,5 +1,5 @@
 // Modo prova: só o conteúdo emergencial, separado por avaliação (N1 e N2). Por nota de prova, o
-// bloco "essencial"; depois as dicas de prova, as questões e as cartas das notas de prova.
+// bloco "essencial"; depois as dicas de prova, as questões e os flashcards das notas de prova.
 import { useEffect, useMemo, useState } from "react";
 import { api, mensagem, type ProvaDados } from "../lib/api";
 import { nomeAv, provasDe } from "../lib/avaliacao";
@@ -8,6 +8,7 @@ import { Link, ir, useBusca } from "../lib/rota";
 import { ConteudoNota } from "../componentes/ConteudoNota";
 import { Icone } from "../componentes/Icone";
 import { Barra, Carregando, Selo, Vazio } from "../componentes/ui";
+import { Ajuda } from "../componentes/Ajuda";
 
 const PRIORIDADE: Record<number, string> = { 1: "Prioridade alta", 2: "Prioridade média", 3: "Prioridade baixa" };
 
@@ -34,7 +35,7 @@ export function ProvaLista() {
         <div>
           <p className="olho">Modo prova</p>
           <h1 className="titulo-pagina">O que é emergencial</h1>
-          <p className="sub">Só o que foi marcado como conteúdo de prova, por avaliação (N1 e N2) e na ordem de prioridade.</p>
+          <p className="sub">Só o que foi marcado como conteúdo de prova, por avaliação (N1 e N2) e na ordem de prioridade. Um cartão por matéria e por prova.</p>
         </div>
       </header>
       {!provas.length && <Vazio icone="prova" titulo="Nenhum conteúdo de prova marcado">Quando uma matéria tiver notas marcadas como prova, ela aparece aqui.</Vazio>}
@@ -106,7 +107,7 @@ export function ProvaMateria({ id }: { id: string }) {
         </div>
         {materia.provaFoco && (
           <div className="foco">
-            <span className="rotulo">O que cai na {nomeAv(av)}</span>
+            <span className="rotulo">O que cai na {nomeAv(av)} <Ajuda>Escrito pelo administrador a partir do que o professor disse que cai nesta prova.</Ajuda></span>
             <p>{materia.provaFoco}</p>
           </div>
         )}
@@ -120,6 +121,9 @@ export function ProvaMateria({ id }: { id: string }) {
         <Vazio icone="prova" titulo="Nada marcado como prova nesta matéria" />
       ) : (
         <>
+          <p className="legenda-abas">
+            <strong>Essencial</strong>: o mínimo de cada nota de prova, com "já sei" para marcar o que domina. <strong>Dicas de prova</strong>: como o assunto costuma ser cobrado e as pegadinhas. <strong>Teste-se</strong>: questões com correção na hora.
+          </p>
           <div className="abas" role="tablist">
             <button type="button" role="tab" aria-selected={aba === "essencial"} className={aba === "essencial" ? "ativa" : ""} onClick={() => setAba("essencial")}>Essencial <b>{notas.length}</b></button>
             <button type="button" role="tab" aria-selected={aba === "dicas"} className={aba === "dicas" ? "ativa" : ""} onClick={() => setAba("dicas")}>Dicas de prova <b>{dados.dicas.length}</b></button>

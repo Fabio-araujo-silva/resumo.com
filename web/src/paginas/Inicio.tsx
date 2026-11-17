@@ -7,6 +7,7 @@ import { Link } from "../lib/rota";
 import { Icone } from "../componentes/Icone";
 import { Barra, Carregando, Vazio } from "../componentes/ui";
 import { CapaMateria } from "./Estante";
+import { Ajuda } from "../componentes/Ajuda";
 
 type Recente = { id: string; titulo: string; materia: string; em: number };
 
@@ -58,7 +59,7 @@ export function Inicio() {
 
       <section className="painel-hoje">
         <Link para={melhorBaralho ? "/flashcards/" + melhorBaralho.materia : "/flashcards"} className="cartao destaque-cartas">
-          <span className="rotulo"><Icone nome="cartas" tam={15} /> Flashcards de hoje</span>
+          <span className="rotulo"><Icone nome="cartas" tam={15} /> Flashcards de hoje <Ajuda>Revisões que vencem hoje mais os flashcards novos do seu limite diário, somando todas as matérias.</Ajuda></span>
           <strong className="numerao" data-testid="cartas-hoje">{paraHoje ?? "–"}</strong>
           <span className="sub">
             {cartas ? (paraHoje ? `${plural(cartas.baralhos.reduce((s, b) => s + b.revisar + b.aprendendo, 0), "para revisar", "para revisar")} · ${plural(cartas.baralhos.reduce((s, b) => s + b.novos, 0), "nova", "novas")}` : "Tudo em dia.") : " "}
@@ -68,7 +69,7 @@ export function Inicio() {
 
         {proxima ? (
           <Link para={`/prova/${proxima.m.id}?av=${proxima.av}`} className={"cartao destaque-prova" + (proxima.dias <= 7 ? " urgente" : "")}>
-            <span className="rotulo"><Icone nome="prova" tam={15} /> Próxima prova</span>
+            <span className="rotulo"><Icone nome="prova" tam={15} /> Próxima prova <Ajuda>A prova marcada mais próxima (N1 ou N2) entre as suas matérias. Abre o modo prova com só o conteúdo dela.</Ajuda></span>
             <strong className="numerao">{proxima.dias === 0 ? "hoje" : proxima.dias === 1 ? "amanhã" : proxima.dias + " dias"}</strong>
             <span className="sub">{proxima.m.nome} · {nomeAv(proxima.av)} · {dataCurta(proxima.data)}</span>
             <span className="sequencia">Abrir o modo prova <Icone nome="direita" tam={14} /></span>
@@ -83,7 +84,7 @@ export function Inicio() {
         )}
 
         <Link para="/estante" className="cartao destaque-leitura">
-          <span className="rotulo"><Icone nome="livro" tam={15} /> Leitura</span>
+          <span className="rotulo"><Icone nome="livro" tam={15} /> Leitura <Ajuda>Quantas notas você já marcou como lidas. As visões gerais dos módulos não contam.</Ajuda></span>
           <strong className="numerao">{lidas}<small>/{leitura.length}</small></strong>
           <span className="sub">notas lidas</span>
           <Barra valor={lidas} total={leitura.length} />

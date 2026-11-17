@@ -7,6 +7,7 @@ import { dataCurta, plural, textoProva, useApp } from "../lib/loja";
 import { Link, ir } from "../lib/rota";
 import { Icone } from "../componentes/Icone";
 import { Anel, Barra, Carregando, CartaoNota, Vazio } from "../componentes/ui";
+import { Ajuda } from "../componentes/Ajuda";
 
 export function CapaMateria({ materia }: { materia: Materia }) {
   const { idx } = useApp();
@@ -116,11 +117,14 @@ export function PaginaMateria({ id }: { id: string }) {
           )}
           {deProva > 0 && <Link para={"/prova/" + id} className="botao vidro"><Icone nome="prova" tam={16} /> Modo prova</Link>}
           {cartas > 0 && <Link para={"/flashcards/" + id} className="botao vidro"><Icone nome="cartas" tam={16} /> Flashcards</Link>}
-          <Link para={"/notas?materia=" + id} className="botao vidro"><Icone nome="grafo" tam={16} /> Ver ligações</Link>
+          <Link para={"/notas?materia=" + id} className="botao vidro" title="Navegue pelas notas um tópico por vez, seguindo as ligações"><Icone nome="grafo" tam={16} /> Explorar ligações</Link>
         </div>
         <div className="heroi-anel"><Anel valor={lidas} total={notas.length} tam={72} /></div>
       </header>
 
+      <p className="legenda-cartoes">
+        Cada cartão é uma nota curta. <span className="selo selo-mapa">Mapa</span> abre a visão geral do módulo; <span className="selo selo-prova">Prova</span> marca o que cai na prova; o número com <Icone nome="cartas" tam={12} /> é a quantidade de flashcards da nota.
+      </p>
       <div className="barra-filtros">
         <div className="chips" role="group" aria-label="Avaliação">
           {provas.length > 1 && <button type="button" className={"chip" + (!ativa ? " ativo" : "")} onClick={() => setAv(null)}>N1 e N2</button>}
@@ -151,7 +155,7 @@ export function PaginaMateria({ id }: { id: string }) {
             <header className="avaliacao-cabeca">
               <span className="avaliacao-sigla">{nomeAv(a)}</span>
               <div>
-                <h2>{a === "n1" ? "Primeira avaliação" : "Segunda avaliação"}</h2>
+                <h2>{a === "n1" ? "Primeira avaliação" : "Segunda avaliação"} <Ajuda>Os módulos que caem na {nomeAv(a)}. Cada avaliação tem a sua data, o seu modo prova e os seus flashcards.</Ajuda></h2>
                 <p>
                   {plural(mods.length, "módulo", "módulos")} · {feitasGrupo}/{leitura.length} notas lidas
                   {prova.data ? ` · prova em ${dataCurta(prova.data)}` : ""}
@@ -160,7 +164,7 @@ export function PaginaMateria({ id }: { id: string }) {
               </div>
               <div className="linha-botoes">
                 {provaGrupo > 0 && <Link para={`/prova/${id}?av=${a}`} className="botao pequeno fantasma"><Icone nome="prova" tam={14} /> Modo prova {nomeAv(a)}</Link>}
-                {cartasGrupo > 0 && <Link para={`/flashcards/${id}?av=${a}`} className="botao pequeno fantasma"><Icone nome="cartas" tam={14} /> Cartas {nomeAv(a)}</Link>}
+                {cartasGrupo > 0 && <Link para={`/flashcards/${id}?av=${a}`} className="botao pequeno fantasma"><Icone nome="cartas" tam={14} /> Flashcards {nomeAv(a)}</Link>}
               </div>
             </header>
             {numerados.map(({ mod, n }) => {
