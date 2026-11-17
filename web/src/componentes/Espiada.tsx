@@ -23,8 +23,8 @@ export function Espiada() {
       const id = (e as CustomEvent<string>).detail;
       if (id) setPilha((p) => (p[p.length - 1] === id ? p : [...p, id]));
     };
-    window.addEventListener("sinapse:espiar", abrir);
-    return () => window.removeEventListener("sinapse:espiar", abrir);
+    window.addEventListener("resumo:espiar", abrir);
+    return () => window.removeEventListener("resumo:espiar", abrir);
   }, []);
   useEffect(fechar, [caminho, fechar]); // mudou de página: fecha
   useEffect(() => {

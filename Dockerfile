@@ -1,4 +1,4 @@
-# Imagem de produção do Sinapse. O front é compilado no primeiro estágio; só o resultado vai adiante.
+# Imagem de produção do resumo.com. O front é compilado no primeiro estágio; só o resultado vai adiante.
 # A geração de resumos com IA precisa do Claude Code, que NÃO está nesta imagem: gere no seu
 # computador e publique com `node server/cli.js importar <pasta> --url ... --token ...`.
 
@@ -22,8 +22,8 @@ COPY FORMATO.md ./
 COPY server/src server/src
 COPY server/cli.js server/cli.js
 COPY --from=build /app/web/dist web/dist
-RUN useradd --create-home --uid 10001 sinapse && mkdir -p /dados && chown sinapse /dados
-USER sinapse
+RUN useradd --create-home --uid 10001 resumo && mkdir -p /dados && chown resumo /dados
+USER resumo
 VOLUME /dados
 EXPOSE 4310
 HEALTHCHECK --interval=60s --timeout=5s CMD node -e "fetch('http://127.0.0.1:4310/api/saude').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

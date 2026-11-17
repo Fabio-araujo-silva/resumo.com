@@ -19,14 +19,14 @@ type Props = {
   aoContar?: (total: number, reveladas: number) => void;
 };
 
-export const espiar = (id: string) => window.dispatchEvent(new CustomEvent("sinapse:espiar", { detail: id }));
+export const espiar = (id: string) => window.dispatchEvent(new CustomEvent("resumo:espiar", { detail: id }));
 
 const SEL_LACUNA = ":is(p, li, td, dd) :is(strong, mark)";
 const dentroDe = (el: Element, seletor: string) => !!el.closest(seletor);
 const lacunasDe = (raiz: HTMLElement) => [...raiz.querySelectorAll<HTMLElement>(SEL_LACUNA)].filter((e) => !dentroDe(e, ".questao, .callout-cabeca, th, a") && !e.querySelector("strong, mark") && (e.textContent || "").trim().length > 1);
 
 // ---------- "já sei" (guardado no aparelho, por conta) ----------
-const chaveSei = (conta: string) => "sinapse-sei:" + conta;
+const chaveSei = (conta: string) => "resumo-sei:" + conta;
 function lerSei(conta: string): Record<string, 1> {
   try {
     return JSON.parse(localStorage.getItem(chaveSei(conta)) || "{}");

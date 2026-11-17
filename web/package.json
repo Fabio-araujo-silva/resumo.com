@@ -1,5 +1,5 @@
 {
-  "name": "@sinapse/web",
+  "name": "@resumo-com/web",
   "private": true,
   "type": "module",
   "scripts": {

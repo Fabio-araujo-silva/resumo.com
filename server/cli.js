@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// CLI do Sinapse. É por aqui que uma instância do Claude (ou você) confere e publica conteúdo.
+// CLI do resumo.com. É por aqui que uma instância do Claude (ou você) confere e publica conteúdo.
 //
 //   node server/cli.js validar  <pasta|pacote.zip>
 //   node server/cli.js importar <pasta|pacote.zip> [--substituir] [--rascunho] [--url https://site --token XXX]
@@ -59,7 +59,7 @@ async function enviar(url, token, arquivos, op) {
   form.append("modo", op.substituir ? "substituir" : "mesclar");
   form.append("rascunho", op.rascunho ? "1" : "0");
   form.append("arquivo", new Blob([zipar(arquivos)], { type: "application/zip" }), "pacote.zip");
-  const r = await fetch(url.replace(/\/+$/, "") + "/api/admin/importar", { method: "POST", headers: { authorization: "Bearer " + token, "x-sinapse": "1" }, body: form });
+  const r = await fetch(url.replace(/\/+$/, "") + "/api/admin/importar", { method: "POST", headers: { authorization: "Bearer " + token, "x-resumo": "1" }, body: form });
   const corpo = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`o site recusou (${r.status}): ${corpo.error || "erro"}${corpo.relatorio ? "\n" + corpo.relatorio : ""}`);
   return corpo;

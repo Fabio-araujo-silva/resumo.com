@@ -1,7 +1,7 @@
 {
-  "name": "sinapse",
+  "name": "resumo-com",
   "private": true,
-  "description": "Sinapse: plataforma de assinatura de resumos feitos com IA, em notas atômicas, com modo prova e flashcards.",
+  "description": "resumo.com: plataforma de assinatura de resumos feitos com IA, em notas atômicas, com modo prova e flashcards.",
   "type": "module",
   "workspaces": [
     "server",

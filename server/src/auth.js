@@ -6,7 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { HttpError, sha256, novoId, criarLimitador } from "./util.js";
 
-const COOKIE = "sinapse_sessao";
+const COOKIE = "resumo_sessao";
+const COOKIE_ANTIGO = "sinapse_sessao"; // de antes da troca de nome: continua valendo até expirar
 const SCRYPT = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
 export function hashSenha(senha) {
@@ -52,11 +53,11 @@ export function criarUsuario(db, { email, nome, senha, papel = "aluno", expiraEm
 // Na primeira subida, garante que existe um admin (das variáveis de ambiente, ou um gerado na hora).
 export function garantirAdmin(db, config, log = console.log) {
   if (db.prepare("select 1 from users where papel = 'admin'").get()) return null;
-  const email = config.adminEmail || "admin@sinapse.local";
+  const email = config.adminEmail || "admin@resumo.local";
   const senha = config.adminSenha || gerarSenha();
   criarUsuario(db, { email, nome: config.adminNome, senha, papel: "admin", provisoria: !config.adminSenha });
   if (!config.adminSenha) {
-    const aviso = `Primeiro acesso do Sinapse\nlogin: ${email}\nsenha: ${senha}\n\nTroque a senha em Conta depois de entrar e apague este arquivo.\n`;
+    const aviso = `Primeiro acesso do resumo.com\nlogin: ${email}\nsenha: ${senha}\n\nTroque a senha em Conta depois de entrar e apague este arquivo.\n`;
     try {
       fs.writeFileSync(path.join(config.dataDir, "PRIMEIRO-ACESSO.txt"), aviso);
     } catch {}
@@ -68,7 +69,7 @@ export function garantirAdmin(db, config, log = console.log) {
 const publico = (u) =>
   u && { id: u.id, email: u.email, nome: u.nome, papel: u.papel, acessoTotal: !!u.acesso_total, expiraEm: u.expira_em, etiqueta: etiquetaDe(u.id), novosPorDia: u.novos_por_dia, senhaProvisoria: !!u.senha_provisoria };
 // Etiqueta curta e estável de cada conta: vai na marca d'água visível e na invisível.
-export const etiquetaDe = (userId) => sha256("sinapse:" + userId).slice(0, 10);
+export const etiquetaDe = (userId) => sha256("resumo:" + userId).slice(0, 10);
 
 export function registrarAuth(app, { db, config }) {
   const limiteLogin = criarLimitador(10, 15 * 60 * 1000);
@@ -114,7 +115,7 @@ export function registrarAuth(app, { db, config }) {
       }
       return;
     }
-    const token = req.cookies[COOKIE];
+    const token = req.cookies[COOKIE] || req.cookies[COOKIE_ANTIGO];
     if (!token) return;
     const hash = sha256(token);
     const s = q.sessao.get(hash);
@@ -146,6 +147,7 @@ export function registrarAuth(app, { db, config }) {
   app.post("/api/auth/logout", async (req, reply) => {
     if (req.sessaoHash) q.apagarSessao.run(req.sessaoHash);
     reply.clearCookie(COOKIE, { path: "/" });
+    reply.clearCookie(COOKIE_ANTIGO, { path: "/" });
     return { ok: true };
   });
 

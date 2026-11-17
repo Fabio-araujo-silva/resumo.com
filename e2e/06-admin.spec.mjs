@@ -219,7 +219,7 @@ test("gerar com o Claude: envia materiais, acompanha o registro, revisa e public
   await page.fill('input[name="semestre"]', "3");
   await page.locator("[data-testid=arquivos-materiais]").setInputFiles([
     { name: "aula 1.pdf", mimeType: "application/pdf", buffer: pdfDeTeste(["Neuronio"]) },
-    { name: "aula 2.pdf", mimeType: "application/pdf", buffer: pdfDeTeste(["Sinapse"]) },
+    { name: "aula 2.pdf", mimeType: "application/pdf", buffer: pdfDeTeste(["resumo.com"]) },
   ]);
   await expect(page.locator(".lista-compacta").first()).toContainText("2 arquivo(s)");
   await page.fill('textarea[name="conteudosProva"]', "Neurônio e sinapse química");
@@ -283,7 +283,7 @@ test("auditoria: quem abriu o quê e de quem é um trecho vazado; tokens de API"
   page.once("dialog", (d) => d.accept("notebook"));
   await page.locator("button", { hasText: "Criar token" }).click();
   const token = await page.locator("[data-testid=token-novo]").innerText();
-  expect(token).toMatch(/^snp_/);
+  expect(token).toMatch(/^rsm_/);
   const semCookie = await browser.newContext();
   const r = await semCookie.request.get("http://127.0.0.1:4399/api/admin/materias", { headers: { authorization: "Bearer " + token } });
   expect(r.status()).toBe(200);

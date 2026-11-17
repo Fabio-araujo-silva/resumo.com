@@ -52,8 +52,8 @@ export function textoDeOffice(bytes, nome) {
 
 function montarPedido({ materia, existe, materiais, conteudosProva, instrucoes, notasDaMateria, outrasNotas }) {
   const l = [];
-  l.push(`# Pedido: resumo de ${materia.nome} para o Sinapse`, "");
-  l.push("Você vai transformar os materiais desta pasta em um **pacote Sinapse**: um resumo em notas atômicas, curtas e ligadas entre si, para quem vai fazer prova.", "");
+  l.push(`# Pedido: resumo de ${materia.nome} para o resumo.com`, "");
+  l.push("Você vai transformar os materiais desta pasta em um **pacote resumo.com**: um resumo em notas atômicas, curtas e ligadas entre si, para quem vai fazer prova.", "");
   l.push("## Passos", "");
   l.push("1. Leia `FORMATO.md` inteiro: ele define o formato e o padrão de qualidade (seção 5). Siga à risca.");
   l.push("2. Leia TODOS os materiais em `materiais/` (lista abaixo). PDFs: use Read com `pages`. Para .pptx/.docx já existe o texto extraído em `materiais/_texto/`.");
@@ -89,7 +89,7 @@ function montarPedido({ materia, existe, materiais, conteudosProva, instrucoes, 
   return l.join("\n") + "\n";
 }
 
-const SCRIPT_VALIDAR = (raiz) => `// Confere o pacote em ./pacote com o validador do Sinapse.
+const SCRIPT_VALIDAR = (raiz) => `// Confere o pacote em ./pacote com o validador do resumo.com.
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 const { lerPasta, analisarPacote, relatorio } = await import(${JSON.stringify(pathToFileURL(path.join(raiz, "server", "src", "pacote.js")).href)});
@@ -269,7 +269,7 @@ export async function gerarResumo(db, config, pedido) {
     if (rodada >= MAX_RODADAS_CORRECAO) return falhar("o pacote continuou com erros depois das correções", { relatorio: texto });
     mudar("corrigindo");
     logar(`Pedindo correção ao Claude (rodada ${rodada + 1} de ${MAX_RODADAS_CORRECAO})`);
-    r = await rodarClaude(config, dir, `O validador do Sinapse recusou o pacote. Corrija os ERROS abaixo (e os avisos que conseguir) editando os arquivos em pacote/, e rode \`node validar.mjs\` até passar.\n\n${texto}`, {
+    r = await rodarClaude(config, dir, `O validador do resumo.com recusou o pacote. Corrija os ERROS abaixo (e os avisos que conseguir) editando os arquivos em pacote/, e rode \`node validar.mjs\` até passar.\n\n${texto}`, {
       continuar: true,
       aoLogar: logar,
       sinal: pedido.sinal,

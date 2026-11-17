@@ -448,7 +448,7 @@ export function registrarAdmin(app, { db, config }) {
   });
   app.post("/api/admin/tokens", async (req) => {
     const eu = exigirAdmin(req);
-    const token = "snp_" + crypto.randomBytes(24).toString("base64url");
+    const token = "rsm_" + crypto.randomBytes(24).toString("base64url");
     const id = novoId();
     db.prepare("insert into tokens_api (id, nome, token_hash, user_id, criado_em) values (?, ?, ?, ?, ?)").run(id, String((req.body || {}).nome || "token").slice(0, 60), sha256(token), eu.id, Date.now());
     return { id, token };

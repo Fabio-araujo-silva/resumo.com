@@ -1,21 +1,21 @@
 # Ponto de partida para colocar no ar com HTTPS automático (Caddy).
-# Troque sinapse.exemplo.com pelo seu domínio e defina ADMIN_EMAIL/ADMIN_SENHA num arquivo .env.
+# Troque resumo.exemplo.com pelo seu domínio e defina ADMIN_EMAIL/ADMIN_SENHA num arquivo .env.
 services:
-  sinapse:
+  resumo:
     build: .
     restart: unless-stopped
     env_file: .env
     environment:
       TRUST_PROXY: "1"
     volumes:
-      - sinapse-dados:/dados
+      - resumo-dados:/dados
   caddy:
     image: caddy:2
     restart: unless-stopped
     ports: ["80:80", "443:443"]
-    command: caddy reverse-proxy --from sinapse.exemplo.com --to sinapse:4310
+    command: caddy reverse-proxy --from resumo.exemplo.com --to resumo:4310
     volumes:
       - caddy-dados:/data
 volumes:
-  sinapse-dados:
+  resumo-dados:
   caddy-dados:
