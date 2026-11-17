@@ -5,6 +5,12 @@ import { fileURLToPath } from "node:url";
 const aqui = path.dirname(fileURLToPath(import.meta.url));
 export const RAIZ = path.resolve(aqui, "..", "..");
 
+// .env na raiz do projeto (fica fora do git): chaves e ajustes locais. Variável já definida no
+// ambiente tem prioridade.
+try {
+  process.loadEnvFile(path.join(RAIZ, ".env"));
+} catch {}
+
 export function carregarConfig(env = process.env) {
   return {
     porta: Number(env.PORT || 4310),
@@ -12,7 +18,7 @@ export function carregarConfig(env = process.env) {
     dataDir: path.resolve(env.DATA_DIR || path.join(RAIZ, "dados")),
     webDist: path.resolve(env.WEB_DIST || path.join(RAIZ, "web", "dist")),
     producao: env.NODE_ENV === "production",
-    nome: env.NOME_PLATAFORMA || "Sinapse",
+    nome: env.NOME_PLATAFORMA || "resumo.com",
     diasSessao: Number(env.DIAS_SESSAO || 14),
     // Quantos dispositivos um aluno pode manter logados ao mesmo tempo. 1 = entrar em outro lugar
     // derruba o anterior (desestimula emprestar a conta).
@@ -34,5 +40,10 @@ export function carregarConfig(env = process.env) {
     maxUploadMb: Number(env.MAX_UPLOAD_MB || 200),
     // Borra o conteúdo quando a janela perde o foco (atrapalha ferramentas de captura). DESFOCAR=0 desliga.
     desfocar: env.DESFOCAR !== "0",
+    // Leitura da nota em voz alta (ElevenLabs). Sem chave, o botão Ouvir usa a voz do navegador.
+    elevenlabsChave: env.ELEVENLABS_API_KEY || "",
+    vozFeminina: env.VOZ_FEMININA || "EXAVITQu4vr4xnSDxMaL",
+    vozMasculina: env.VOZ_MASCULINA || "nPczCjzI2devNBz1zQrb",
+    vozModelo: env.VOZ_MODELO || "eleven_multilingual_v2",
   };
 }

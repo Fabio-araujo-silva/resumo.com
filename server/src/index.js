@@ -1,4 +1,4 @@
-// Servidor do Sinapse: API (contas, conteúdo, flashcards, admin) + o front-end compilado (web/dist).
+// Servidor do resumo.com: API (contas, conteúdo, flashcards, admin) + o front-end compilado (web/dist).
 import fs from "node:fs";
 import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
@@ -14,12 +14,14 @@ import { registrarAuth, garantirAdmin } from "./auth.js";
 import { registrarConteudo } from "./conteudo.js";
 import { registrarFlashcards } from "./flashcards.js";
 import { registrarAdmin } from "./admin.js";
+import { registrarVoz } from "./voz.js";
 
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
   "font-src 'self' data:",
   "connect-src 'self'",
   "worker-src 'self' blob:",
@@ -50,7 +52,7 @@ export async function montarApp(sobrepor = {}) {
   // Toda escrita na API exige um cabeçalho que formulários de outros sites não conseguem mandar (CSRF).
   app.addHook("onRequest", async (req) => {
     if (req.method === "GET" || req.method === "HEAD" || !req.url.startsWith("/api/")) return;
-    if (req.headers["x-sinapse"] !== "1") throw new HttpError(403, "requisição recusada");
+    if (req.headers["x-resumo"] !== "1") throw new HttpError(403, "requisição recusada");
   });
 
   app.addHook("onSend", async (req, reply, payload) => {
@@ -76,6 +78,7 @@ export async function montarApp(sobrepor = {}) {
   registrarConteudo(app, { db, config });
   registrarFlashcards(app, { db, config, agora: sobrepor.agora });
   registrarAdmin(app, { db, config });
+  registrarVoz(app, { db, config });
 
   app.get("/api/saude", async () => ({ ok: true }));
 
