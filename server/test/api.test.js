@@ -709,13 +709,14 @@ test("voz: sem chave avisa; com chave gera uma vez, transmite e guarda (ElevenLa
     s.importar(pacoteAnatomia());
     const ana = await s.entrar("ana@teste.com", "ana-senha-123");
     const info = (await s.pedir(ana, "GET", "/api/voz")).json;
-    assert.deepEqual([info.disponivel, info.vozes.map((v) => v.nome)], [true, ["Feminina", "Masculina"]]);
+    assert.deepEqual([info.disponivel, info.voz], [true, { nome: "Masculina", detalhe: "Brian", idioma: "pt-BR" }]);
     const r = await s.pedir(ana, "GET", "/api/voz/anatomia/plexo-braquial?voz=m");
     assert.equal(r.status, 200);
     assert.equal(r.headers["content-type"], "audio/mpeg");
     assert.equal(r.bruto.length, 8);
     assert.equal(chamadas.length, 1);
-    assert.match(chamadas[0].url, /nPczCjzI2devNBz1zQrb/, "masculina = Brian");
+    assert.match(chamadas[0].url, /nPczCjzI2devNBz1zQrb/, "sempre a voz masculina (Brian)");
+    assert.deepEqual([chamadas[0].corpo.language_code, chamadas[0].corpo.voice_settings.style > 0.3], ["pt", true], "português, mais expressiva");
     assert.equal(chamadas[0].chave, "chave-de-teste");
     assert.match(chamadas[0].corpo.text, /^Plexo braquial\. Rede nervosa de C5 a T1/);
     assert.ok(!/Pergunta 1|flashcard|De quais raízes/.test(chamadas[0].corpo.text), "flashcards e questões não são lidos");
@@ -723,9 +724,9 @@ test("voz: sem chave avisa; com chave gera uma vez, transmite e guarda (ElevenLa
     await new Promise((ok) => setTimeout(ok, 50));
     assert.equal((await s.pedir(ana, "GET", "/api/voz/anatomia/plexo-braquial?voz=m")).bruto.length, 8);
     assert.equal(chamadas.length, 1);
-    // a outra voz é outra gravação
+    // pedir "outra voz" não existe mais: sai a mesma gravação
     await s.pedir(ana, "GET", "/api/voz/anatomia/plexo-braquial?voz=f");
-    assert.match(chamadas[1].url, /EXAVITQu4vr4xnSDxMaL/);
+    assert.equal(chamadas.length, 1);
     assert.equal((await s.pedir(ana, "GET", "/api/voz/anatomia/nao-existe")).status, 404);
     assert.equal((await s.pedir(null, "GET", "/api/voz/anatomia/plexo-braquial")).status, 401);
     await s.fechar();
@@ -751,5 +752,42 @@ test("troca de nome: banco antigo é renomeado e o cookie antigo de sessão cont
   const antigo = cookie.replace(/^resumo_sessao=/, "sinapse_sessao=");
   assert.notEqual(antigo, cookie);
   assert.equal((await s.pedir(antigo, "GET", "/api/auth/me")).json.user.email, "ana@teste.com");
+  await s.fechar();
+});
+
+test("ofensiva: dias seguidos com flashcard respondido ou nota lida; recorde; em risco; quebra", async () => {
+  const s = await subir();
+  s.importar(pacoteAnatomia());
+  const ana = await s.entrar("ana@teste.com", "ana-senha-123");
+  const of = async () => (await s.pedir(ana, "GET", "/api/ofensiva")).json;
+  let o = await of();
+  assert.deepEqual([o.atual, o.recorde, o.hojeFeito, o.emRisco, o.totalDias, o.dias.length], [0, 0, false, false, 0, 35]);
+  assert.equal(o.dias[34].hoje, true);
+
+  // dia 1: responde um flashcard
+  const p = (await s.pedir(ana, "GET", "/api/flashcards/proxima?materia=anatomia")).json;
+  await s.pedir(ana, "POST", "/api/flashcards/responder", { materia: "anatomia", carta: p.carta.id, resposta: 3 });
+  o = await of();
+  assert.deepEqual([o.atual, o.recorde, o.hojeFeito, o.emRisco], [1, 1, true, false]);
+  assert.deepEqual([o.dias[34].flashcards, o.dias[34].notas, o.dias[34].ativo], [1, 0, true]);
+
+  // dia 2: só lê uma nota (também conta)
+  s.relogio.t += DIA;
+  o = await of();
+  assert.deepEqual([o.atual, o.hojeFeito, o.emRisco], [1, false, true], "estudou ontem e ainda não hoje: em risco, mas viva");
+  s.db.prepare("insert into leituras (user_id, nota_id, lida_em) values ((select id from users where email = 'ana@teste.com'), 'anatomia/plexo-braquial', ?)").run(s.relogio.t);
+  o = await of();
+  assert.deepEqual([o.atual, o.recorde, o.hojeFeito, o.dias[34].notas], [2, 2, true, 1]);
+
+  // madrugada (antes das 4h) ainda conta como o dia anterior
+  s.relogio.t += 14 * 3600000; // 12h + 14h = 2h da manhã seguinte em Brasília
+  o = await of();
+  assert.equal(o.hojeFeito, true, "às 2h da manhã ainda é o mesmo dia de estudo");
+
+  // pula um dia inteiro: a ofensiva zera, o recorde fica
+  s.relogio.t += 2 * DIA;
+  o = await of();
+  assert.deepEqual([o.atual, o.recorde, o.emRisco, o.totalDias], [0, 2, false, 2]);
+  assert.equal((await s.pedir(null, "GET", "/api/ofensiva")).status, 401);
   await s.fechar();
 });
