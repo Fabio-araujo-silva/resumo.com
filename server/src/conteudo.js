@@ -106,7 +106,22 @@ export function registrarConteudo(app, { db, config }) {
           .map((l) => [l.origem, l.destino]),
       };
     });
-    return { ...base, lidas: [...lidas], versao: conteudo.versao };
+    const pendencias = db.prepare("select p.nota_id nota, p.criado_em em from pendencias p where p.user_id = ? order by p.criado_em desc").all(user.id);
+    return { ...base, lidas: [...lidas], pendencias, versao: conteudo.versao };
+  });
+
+  // Pendências: conteúdos que o assinante separou para estudar depois. "Dar baixa" tira da lista.
+  app.post("/api/pendencias", async (req) => {
+    const user = exigirUsuario(req);
+    const n = q.nota.get(String((req.body || {}).nota || ""));
+    if (!n || !visao(user).podeNota(n)) throw new HttpError(404, "nota não encontrada");
+    db.prepare("insert or ignore into pendencias (user_id, nota_id, criado_em) values (?, ?, ?)").run(user.id, n.id, Date.now());
+    return { ok: true };
+  });
+  app.delete("/api/pendencias/:materia/:slug", async (req) => {
+    const user = exigirUsuario(req);
+    const r = db.prepare("delete from pendencias where user_id = ? and nota_id = ?").run(user.id, req.params.materia + "/" + req.params.slug);
+    return { ok: true, removida: r.changes > 0 };
   });
 
   app.get("/api/recentes", async (req) => {

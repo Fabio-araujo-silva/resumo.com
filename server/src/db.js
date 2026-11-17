@@ -170,11 +170,24 @@ const MIGRACOES = [
    alter table users add column novos_por_dia integer not null default 20;`,
   // Senha provisória: gerada pelo administrador; a pessoa é levada a criar a própria no primeiro acesso.
   `alter table users add column senha_provisoria integer not null default 0;`,
+  // Explicação de cada flashcard (o "?" ao lado da pergunta) e pendências: conteúdos que o
+  // assinante separou para estudar depois e que saem da lista quando ele dá baixa.
+  `alter table flashcards add column explica text not null default '';
+   create table pendencias (
+     user_id text not null references users(id) on delete cascade,
+     nota_id text not null references notas(id) on delete cascade,
+     criado_em integer not null,
+     primary key (user_id, nota_id)
+   );`,
 ];
 
 export function abrirDb(dataDir) {
   fs.mkdirSync(dataDir, { recursive: true });
-  const db = new DatabaseSync(path.join(dataDir, "sinapse.db"));
+  // o projeto se chamava Sinapse: um banco antigo é renomeado na primeira subida, sem perder nada
+  const antigo = path.join(dataDir, "sinapse.db");
+  if (!fs.existsSync(path.join(dataDir, "resumo.db")) && fs.existsSync(antigo))
+    for (const fim of ["", "-wal", "-shm"]) if (fs.existsSync(antigo + fim)) fs.renameSync(antigo + fim, path.join(dataDir, "resumo.db" + fim));
+  const db = new DatabaseSync(path.join(dataDir, "resumo.db"));
   db.exec("pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;");
   db.exec("create table if not exists schema_version (version integer not null)");
   const row = db.prepare("select version from schema_version").get();
