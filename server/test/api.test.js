@@ -90,7 +90,7 @@ test("primeira subida cria um admin com senha aleatória e avisa onde ela está"
   const db = abrirDb(dir);
   const linhas = [];
   const r = garantirAdmin(db, { ...s.config, dataDir: dir, adminEmail: "", adminSenha: "" }, (l) => linhas.push(l));
-  assert.equal(r.email, "admin@sinapse.local");
+  assert.equal(r.email, "admin@resumo.local");
   assert.match(r.senha, /^[a-z2-9]{4}-[a-z2-9]{4}-[a-z2-9]{4}$/);
   assert.match(fs.readFileSync(path.join(dir, "PRIMEIRO-ACESSO.txt"), "utf8"), new RegExp(r.senha));
   assert.equal(garantirAdmin(db, { ...s.config, dataDir: dir }, () => {}), null, "não recria se já existe");
@@ -204,7 +204,7 @@ test("proteção: figuras só com sessão, PDF só embaralhado, teto de notas ab
   assert.equal(img.status, 200);
   assert.equal(img.headers["content-type"], "image/png");
   assert.ok(img.bruto.equals(PNG));
-  assert.equal((await s.pedir(ana, "GET", "/api/anexos/anatomia/anexos/../../sinapse.db")).status, 404);
+  assert.equal((await s.pedir(ana, "GET", "/api/anexos/anatomia/anexos/../../resumo.db")).status, 404);
   assert.equal((await s.pedir(ana, "GET", "/api/anexos/anatomia/anexos/pdf/resumo-do-joelho.pdf")).status, 403, "o PDF não sai pela rota de anexos");
 
   const pdf = await s.pedir(ana, "GET", "/api/pdf/anatomia/resumo-do-joelho");
@@ -423,10 +423,10 @@ test("admin: importar pacote pelo painel (validar antes, erros bloqueiam), expor
 
   // token de API: é como a CLI (ou outra instância do Claude) publica num site hospedado
   const tk = (await s.pedir(admin, "POST", "/api/admin/tokens", { nome: "notebook" })).json;
-  assert.match(tk.token, /^snp_/);
+  assert.match(tk.token, /^rsm_/);
   const m = await s.enviar(null, "/api/admin/importar", {}, [{ nome: "f.zip", bytes: s.zipar(pacoteFisiologia()) }], { authorization: "Bearer " + tk.token });
   assert.equal(m.status, 200);
-  assert.equal((await s.enviar(null, "/api/admin/importar", {}, [{ nome: "f.zip", bytes: zip }], { authorization: "Bearer snp_errado" })).status, 401);
+  assert.equal((await s.enviar(null, "/api/admin/importar", {}, [{ nome: "f.zip", bytes: zip }], { authorization: "Bearer rsm_errado" })).status, 401);
   assert.ok((await s.pedir(admin, "GET", "/api/admin/tokens")).json.tokens[0].ultimoUso > 0);
   await s.pedir(admin, "DELETE", "/api/admin/tokens/" + tk.id);
   assert.equal((await s.enviar(null, "/api/admin/importar", {}, [{ nome: "f.zip", bytes: zip }], { authorization: "Bearer " + tk.token })).status, 401);
@@ -507,7 +507,7 @@ test("cabeçalhos de segurança e rotas desconhecidas", async () => {
   assert.equal(r.headers["x-content-type-options"], "nosniff");
   assert.match(r.headers["x-robots-tag"], /noindex/);
   assert.equal((await s.pedir(null, "GET", "/api/nao-existe")).status, 404);
-  assert.deepEqual((await s.pedir(null, "GET", "/api/config")).json, { nome: "Sinapse", protecao: { desfocar: true } });
+  assert.deepEqual((await s.pedir(null, "GET", "/api/config")).json, { nome: "resumo.com", protecao: { desfocar: true } });
   await s.fechar();
 });
 
@@ -649,5 +649,107 @@ test("senha provisória: quem recebe a senha do administrador cria a própria ao
   const ana = await s.entrar("ana@teste.com", "ana-senha-123");
   assert.equal((await s.pedir(ana, "GET", "/api/auth/me")).json.user.senhaProvisoria, false);
   assert.equal((await s.pedir(ana, "POST", "/api/auth/senha", { nova: "sem-a-atual-123" })).status, 401);
+  await s.fechar();
+});
+
+test("flashcards: a explicação (??) chega junto da pergunta e não vaza para a resposta", async () => {
+  const s = await subir();
+  s.importar(pacoteAnatomia());
+  const ana = await s.entrar("ana@teste.com", "ana-senha-123");
+  const p = (await s.pedir(ana, "GET", "/api/flashcards/proxima?materia=anatomia")).json;
+  assert.match(p.carta.explica, /O que a pergunta 1 quer saber/);
+  assert.ok(!p.carta.verso.includes("quer saber"), "a explicação não aparece na resposta");
+  assert.deepEqual([p.carta.nota.titulo, p.carta.nota.modulo, p.carta.pendente], ["Plexo braquial", "Membro Superior", false]);
+  assert.match(p.carta.nota.resumo, /C5 a T1/);
+  const id = s.db.prepare("select explica from flashcards where id = ?").get(p.carta.id);
+  assert.equal(id.explica, "O que a pergunta 1 quer saber.");
+  await s.fechar();
+});
+
+test("pendências: separar para depois, aparecer na biblioteca e na carta, dar baixa", async () => {
+  const s = await subir();
+  s.importar(pacoteAnatomia());
+  s.importar(pacoteFisiologia(), { publicada: false });
+  const ana = await s.entrar("ana@teste.com", "ana-senha-123");
+  const bia = await s.entrar("admin@teste.com", "admin-senha-1");
+  const pend = async (c) => (await s.pedir(c, "GET", "/api/biblioteca")).json.pendencias.map((x) => x.nota);
+  assert.deepEqual(await pend(ana), []);
+  assert.equal((await s.pedir(ana, "POST", "/api/pendencias", { nota: "anatomia/plexo-braquial" })).status, 200);
+  assert.equal((await s.pedir(ana, "POST", "/api/pendencias", { nota: "anatomia/plexo-braquial" })).status, 200, "repetir não duplica");
+  await s.pedir(ana, "POST", "/api/pendencias", { nota: "anatomia/manguito-rotador" });
+  assert.deepEqual((await pend(ana)).sort(), ["anatomia/manguito-rotador", "anatomia/plexo-braquial"]);
+  assert.deepEqual(await pend(bia), [], "cada conta tem as suas");
+  const carta = (await s.pedir(ana, "GET", "/api/flashcards/proxima?materia=anatomia")).json.carta;
+  assert.equal(carta.pendente, true);
+  assert.equal((await s.pedir(ana, "POST", "/api/pendencias", { nota: "anatomia/nao-existe" })).status, 404);
+  assert.equal((await s.pedir(ana, "POST", "/api/pendencias", { nota: "fisiologia/potencial-de-acao" })).status, 404, "rascunho não pode ser pendência de assinante");
+  assert.deepEqual((await s.pedir(ana, "DELETE", "/api/pendencias/anatomia/plexo-braquial")).json, { ok: true, removida: true });
+  assert.deepEqual(await pend(ana), ["anatomia/manguito-rotador"]);
+  assert.equal((await s.pedir(null, "POST", "/api/pendencias", { nota: "anatomia/plexo-braquial" })).status, 401);
+  await s.fechar();
+});
+
+test("voz: sem chave avisa; com chave gera uma vez, transmite e guarda (ElevenLabs simulado)", async () => {
+  const semChave = await subir();
+  semChave.importar(pacoteAnatomia());
+  const a0 = await semChave.entrar("ana@teste.com", "ana-senha-123");
+  assert.deepEqual((await semChave.pedir(a0, "GET", "/api/voz")).json.disponivel, false);
+  assert.equal((await semChave.pedir(a0, "GET", "/api/voz/anatomia/plexo-braquial")).status, 503);
+  await semChave.fechar();
+
+  const original = globalThis.fetch;
+  const chamadas = [];
+  globalThis.fetch = async (url, op) => {
+    if (!String(url).startsWith("https://api.elevenlabs.io")) return original(url, op);
+    chamadas.push({ url: String(url), corpo: JSON.parse(op.body), chave: op.headers["xi-api-key"] });
+    return new Response(new ReadableStream({ start(c) { c.enqueue(new Uint8Array([0x49, 0x44, 0x33, 1, 2])); c.enqueue(new Uint8Array([3, 4, 5])); c.close(); } }), { status: 200, headers: { "content-type": "audio/mpeg" } });
+  };
+  try {
+    const s = await subir({ elevenlabsChave: "chave-de-teste" });
+    s.importar(pacoteAnatomia());
+    const ana = await s.entrar("ana@teste.com", "ana-senha-123");
+    const info = (await s.pedir(ana, "GET", "/api/voz")).json;
+    assert.deepEqual([info.disponivel, info.vozes.map((v) => v.nome)], [true, ["Feminina", "Masculina"]]);
+    const r = await s.pedir(ana, "GET", "/api/voz/anatomia/plexo-braquial?voz=m");
+    assert.equal(r.status, 200);
+    assert.equal(r.headers["content-type"], "audio/mpeg");
+    assert.equal(r.bruto.length, 8);
+    assert.equal(chamadas.length, 1);
+    assert.match(chamadas[0].url, /nPczCjzI2devNBz1zQrb/, "masculina = Brian");
+    assert.equal(chamadas[0].chave, "chave-de-teste");
+    assert.match(chamadas[0].corpo.text, /^Plexo braquial\. Rede nervosa de C5 a T1/);
+    assert.ok(!/Pergunta 1|flashcard|De quais raízes/.test(chamadas[0].corpo.text), "flashcards e questões não são lidos");
+    // de novo: sai do disco, sem chamar o ElevenLabs
+    await new Promise((ok) => setTimeout(ok, 50));
+    assert.equal((await s.pedir(ana, "GET", "/api/voz/anatomia/plexo-braquial?voz=m")).bruto.length, 8);
+    assert.equal(chamadas.length, 1);
+    // a outra voz é outra gravação
+    await s.pedir(ana, "GET", "/api/voz/anatomia/plexo-braquial?voz=f");
+    assert.match(chamadas[1].url, /EXAVITQu4vr4xnSDxMaL/);
+    assert.equal((await s.pedir(ana, "GET", "/api/voz/anatomia/nao-existe")).status, 404);
+    assert.equal((await s.pedir(null, "GET", "/api/voz/anatomia/plexo-braquial")).status, 401);
+    await s.fechar();
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("troca de nome: banco antigo é renomeado e o cookie antigo de sessão continua valendo", async () => {
+  const os = await import("node:os");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "resumo-migra-"));
+  const velho = new (await import("node:sqlite")).DatabaseSync(path.join(dir, "sinapse.db"));
+  velho.exec("create table marca (x text); insert into marca values ('dados antigos')");
+  velho.close();
+  const db = abrirDb(dir);
+  assert.ok(fs.existsSync(path.join(dir, "resumo.db")) && !fs.existsSync(path.join(dir, "sinapse.db")));
+  assert.equal(db.prepare("select x from marca").get().x, "dados antigos");
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  const s = await subir();
+  const cookie = await s.entrar("ana@teste.com", "ana-senha-123");
+  const antigo = cookie.replace(/^resumo_sessao=/, "sinapse_sessao=");
+  assert.notEqual(antigo, cookie);
+  assert.equal((await s.pedir(antigo, "GET", "/api/auth/me")).json.user.email, "ana@teste.com");
   await s.fechar();
 });

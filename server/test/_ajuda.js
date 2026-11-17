@@ -14,7 +14,7 @@ const texto = (n) => Array.from({ length: n }, (_, i) => "palavra" + i).join(" "
 
 export function nota({ titulo, resumo = "Uma frase que diz o que a nota ensina.", prova = false, prioridade, corpo, cards = 2, extra = "", props = "" }) {
   const c = corpo ?? `> [!ideia]\n> Ideia central de ${titulo}.\n\n${texto(60)}\n`;
-  const fc = Array.from({ length: cards }, (_, i) => `> [!flashcard] Pergunta ${i + 1} sobre ${titulo}?\n> Resposta ${i + 1}.`).join("\n\n");
+  const fc = Array.from({ length: cards }, (_, i) => `> [!flashcard] Pergunta ${i + 1} sobre ${titulo}?\n> ?? O que a pergunta ${i + 1} quer saber.\n> Resposta ${i + 1}.`).join("\n\n");
   return `---\n${titulo ? `titulo: "${titulo}"\n` : ""}resumo: "${resumo}"\nprova: ${prova}\n${prioridade ? `prioridade: ${prioridade}\n` : ""}${props}---\n\n${c}\n${extra}\n${fc}\n`;
 }
 
@@ -62,22 +62,22 @@ export function pacoteFisiologia() {
 }
 
 export async function subir(opcoes = {}) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "sinapse-teste-"));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "resumo-teste-"));
   const relogio = { t: Date.UTC(2030, 0, 15, 15, 0, 0) }; // 12h em Brasília
-  const { app, db, config } = await montarApp({ dataDir, logger: false, webDist: path.join(dataDir, "sem-web"), agora: () => relogio.t, ...opcoes });
+  const { app, db, config } = await montarApp({ dataDir, logger: false, webDist: path.join(dataDir, "sem-web"), agora: () => relogio.t, elevenlabsChave: "", ...opcoes });
   criarUsuario(db, { email: "admin@teste.com", nome: "Admin", senha: "admin-senha-1", papel: "admin" });
   criarUsuario(db, { email: "ana@teste.com", nome: "Ana", senha: "ana-senha-123", papel: "aluno" });
 
   const importar = (arquivos, op) => importarPacote(db, dataDir, analisarPacote(arquivos), op);
 
   async function entrar(email, senha) {
-    const r = await app.inject({ method: "POST", url: "/api/auth/login", headers: { "x-sinapse": "1" }, payload: { email, senha } });
+    const r = await app.inject({ method: "POST", url: "/api/auth/login", headers: { "x-resumo": "1" }, payload: { email, senha } });
     if (r.statusCode !== 200) throw new Error("login falhou: " + r.body);
     return String(r.headers["set-cookie"]).split(";")[0];
   }
   // pedido autenticado; devolve { status, json, bruto, headers }
   async function pedir(cookie, metodo, url, corpo, cabecalhos = {}) {
-    const r = await app.inject({ method: metodo, url, headers: { ...(cookie ? { cookie } : {}), "x-sinapse": "1", ...cabecalhos }, ...(corpo !== undefined ? { payload: corpo } : {}) });
+    const r = await app.inject({ method: metodo, url, headers: { ...(cookie ? { cookie } : {}), "x-resumo": "1", ...cabecalhos }, ...(corpo !== undefined ? { payload: corpo } : {}) });
     let json = null;
     try {
       json = r.json();
@@ -85,7 +85,7 @@ export async function subir(opcoes = {}) {
     return { status: r.statusCode, json, bruto: r.rawPayload, headers: r.headers };
   }
   function multipart(campos, arquivos) {
-    const limite = "----sinapse" + Math.random().toString(16).slice(2);
+    const limite = "----resumo" + Math.random().toString(16).slice(2);
     const partes = [];
     for (const [k, v] of Object.entries(campos)) partes.push(Buffer.from(`--${limite}\r\ncontent-disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
     for (const a of arquivos) {

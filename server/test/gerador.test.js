@@ -49,7 +49,7 @@ test("gerar: monta a pasta, aciona o Claude, manda corrigir o erro do validador 
   const dir = r.dir;
   assert.deepEqual(fs.readdirSync(path.join(dir, "materiais")).sort(), ["1-aula 1.pdf", "_texto", "aula 1.pdf", "aula 2.pptx"]);
   assert.match(fs.readFileSync(path.join(dir, "materiais", "_texto", "aula 2.pptx.txt"), "utf8"), /SLIDE 1/);
-  assert.ok(fs.readFileSync(path.join(dir, "FORMATO.md"), "utf8").includes("Pacote Sinapse"));
+  assert.ok(fs.readFileSync(path.join(dir, "FORMATO.md"), "utf8").includes("Pacote resumo.com"));
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, ".claude", "settings.json"), "utf8")).permissions.defaultMode, "acceptEdits");
   const pedido = fs.readFileSync(path.join(dir, "PEDIDO.md"), "utf8");
   assert.match(pedido, /slug: neurofisiologia/);
@@ -66,7 +66,7 @@ test("gerar: monta a pasta, aciona o Claude, manda corrigir o erro do validador 
   assert.deepEqual(chamadas[0].args.slice(4, 7), ["--permission-mode", "acceptEdits", "--allowedTools"]);
   assert.ok(chamadas[0].args.includes("Bash(node *)") && !chamadas[0].args.includes("--continue"));
   assert.ok(chamadas[1].args.includes("--continue"));
-  assert.match(chamadas[1].prompt, /validador do Sinapse recusou/);
+  assert.match(chamadas[1].prompt, /validador do resumo.com recusou/);
   const tudo = log.join("\n");
   assert.match(tudo, /Material: aula 2\.pptx .* \+ texto extraído/);
   assert.match(tudo, /Claude: Li o pedido .* FORMATO\.md presente/);

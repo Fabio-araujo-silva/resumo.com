@@ -200,7 +200,7 @@ test("zip: com ou sem pasta raiz, e pasta no disco, dão o mesmo pacote", () => 
   const comRaiz = analisarPacote(lerZip(zipar(new Map([...original].map(([k, v]) => ["anatomia-pacote/" + k, v])))));
   assert.equal(direto.ok && comRaiz.ok, true);
   assert.deepEqual(comRaiz.notas.map((n) => n.slug), direto.notas.map((n) => n.slug));
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sinapse-pasta-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "resumo-pasta-"));
   for (const [k, v] of original) {
     fs.mkdirSync(path.dirname(path.join(dir, k)), { recursive: true });
     fs.writeFileSync(path.join(dir, k), v);
@@ -211,7 +211,7 @@ test("zip: com ou sem pasta raiz, e pasta no disco, dão o mesmo pacote", () => 
 });
 
 test("importar: grava tudo, mescla sem apagar, substitui quando pedido, e mantém o progresso dos flashcards", () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "sinapse-imp-"));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "resumo-imp-"));
   const db = abrirDb(dataDir);
   const rel = importarPacote(db, dataDir, analisarPacote(pacoteAnatomia()));
   assert.deepEqual([rel.criadas.length, rel.atualizadas.length, rel.flashcards], [4, 0, 6]);
@@ -261,7 +261,7 @@ test("importar: grava tudo, mescla sem apagar, substitui quando pedido, e manté
 });
 
 test("exportar e importar de volta devolve a mesma matéria (ida e volta sem perda)", () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "sinapse-exp-"));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "resumo-exp-"));
   const db = abrirDb(dataDir);
   importarPacote(db, dataDir, analisarPacote(pacoteAnatomia()));
   const foto = () => JSON.stringify(db.prepare("select id, modulo_id, titulo, resumo, md, prova, prioridade, tags, ordem from notas order by id").all().map((n) => ({ ...n, ordem: 0 })));
