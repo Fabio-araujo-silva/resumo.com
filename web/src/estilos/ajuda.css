@@ -90,7 +90,7 @@
 .explorar-grafo { height: min(72vh, 760px); }
 .explorar .painel-nota { max-height: min(72vh, 760px); }
 .painel-nota h4 { display: flex; align-items: center; gap: 6px; }
-.lista-ligadas button span { flex: 1; }
+.lista-ligadas button span:not(.selo) { flex: 1; }
 .voltar-foco { font-size: 13px; align-self: flex-start; }
 
 @media (max-width: 1200px) {
