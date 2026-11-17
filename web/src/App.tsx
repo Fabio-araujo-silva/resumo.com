@@ -4,6 +4,7 @@ import { ir, useCaminho } from "./lib/rota";
 import { ativarProtecao, MarcaDagua } from "./lib/protecao";
 import { Layout } from "./componentes/Layout";
 import { Avisos, Vazio } from "./componentes/ui";
+import { CriarSenha } from "./componentes/CriarSenha";
 import { Icone, Logo } from "./componentes/Icone";
 import { Entrar } from "./paginas/Entrar";
 import { Inicio } from "./paginas/Inicio";
@@ -84,6 +85,7 @@ export function App() {
           </div>
         </>
       )}
+      <CriarSenha />
       <Avisos avisos={avisos} />
     </>
   );

@@ -1,11 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { api, mensagem } from "../lib/api";
+import { api, mensagem, type Usuario } from "../lib/api";
 import { useApp } from "../lib/loja";
 import { Link } from "../lib/rota";
 import { Icone } from "../componentes/Icone";
 
 export function Conta() {
-  const { usuario, tema, alternarTema, sair, avisar } = useApp();
+  const { usuario, tema, alternarTema, sair, avisar, definirUsuario } = useApp();
   const [atual, setAtual] = useState("");
   const [nova, setNova] = useState("");
   const [erro, setErro] = useState("");
@@ -16,7 +16,8 @@ export function Conta() {
     e.preventDefault();
     setErro("");
     try {
-      await api.post("/api/auth/senha", { atual, nova });
+      const r = await api.post<{ user: Usuario }>("/api/auth/senha", { atual, nova });
+      definirUsuario(r.user);
       setAtual("");
       setNova("");
       avisar("Senha trocada. Os outros aparelhos foram desconectados.", "ok");
@@ -31,7 +32,7 @@ export function Conta() {
         <div>
           <p className="olho">Conta</p>
           <h1 className="titulo-pagina">{usuario.nome}</h1>
-          <p className="sub">{usuario.email} · {admin ? "Administrador" : "Aluno"}{usuario.expiraEm ? ` · acesso até ${new Date(usuario.expiraEm).toLocaleDateString("pt-BR")}` : ""}</p>
+          <p className="sub">{usuario.email} · {admin ? "Administrador" : "Assinante"}{usuario.expiraEm ? ` · acesso até ${new Date(usuario.expiraEm).toLocaleDateString("pt-BR")}` : ""}</p>
         </div>
       </header>
 
@@ -54,8 +55,9 @@ export function Conta() {
       </section>
 
       <section className="cartao">
-        <h2 className="titulo-secao">Trocar senha</h2>
-        <form onSubmit={trocar} className="form-coluna">
+        <h2 className="titulo-secao"><Icone nome="chave" tam={17} /> Trocar senha</h2>
+        <p className="sub">Vale na hora e desconecta os outros aparelhos. Se esquecer, o administrador gera uma provisória para você.</p>
+        <form onSubmit={trocar} className="form-coluna" data-testid="trocar-senha">
           {erro && <div className="alerta alerta-erro" role="alert">{erro}</div>}
           <label className="campo"><span>Senha atual</span><input type="password" autoComplete="current-password" required value={atual} onChange={(e) => setAtual(e.target.value)} /></label>
           <label className="campo"><span>Senha nova (8 caracteres ou mais)</span><input type="password" autoComplete="new-password" required minLength={8} value={nova} onChange={(e) => setNova(e.target.value)} /></label>

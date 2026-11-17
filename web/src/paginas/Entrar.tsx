@@ -62,6 +62,9 @@ export function Entrar() {
             {enviando ? "Entrando…" : "Entrar"}
           </button>
           <p className="entrar-nota">
+            <Icone nome="chave" tam={14} /> Esqueceu a senha? Peça uma nova ao administrador: você cria a sua ao entrar.
+          </p>
+          <p className="entrar-nota">
             <Icone nome="cadeado" tam={14} /> Acesso por assinatura. O conteúdo é pessoal e identificado com a sua conta.
           </p>
         </form>

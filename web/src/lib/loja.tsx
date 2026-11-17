@@ -25,6 +25,7 @@ type App = {
   motivoSaida: string;
   entrar: (email: string, senha: string) => Promise<void>;
   sair: () => Promise<void>;
+  definirUsuario: (u: Usuario) => void;
   bib: Biblioteca | null;
   idx: Indice;
   recarregar: () => Promise<void>;
@@ -153,7 +154,7 @@ export function Provedor({ children }: { children: ReactNode }) {
   }, []);
 
   const idx = useMemo(() => montarIndice(bib), [bib]);
-  const valor: App = { usuario, config, motivoSaida, entrar, sair, bib, idx, recarregar, marcarLida, tema, alternarTema, avisos, avisar };
+  const valor: App = { usuario, config, motivoSaida, entrar, sair, definirUsuario: setUsuario, bib, idx, recarregar, marcarLida, tema, alternarTema, avisos, avisar };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }
 
