@@ -79,10 +79,10 @@ function sincronizarCards(db, materiaId, notaId, flashcards) {
   const apagar = db.prepare("delete from flashcards where id = ?");
   for (const a of atuais) if (!ids.includes(a.id)) apagar.run(a.id);
   const por = db.prepare(
-    `insert into flashcards (id, materia_id, nota_id, frente, verso, ordem) values (?, ?, ?, ?, ?, ?)
-     on conflict(id) do update set frente = excluded.frente, verso = excluded.verso, ordem = excluded.ordem, materia_id = excluded.materia_id`
+    `insert into flashcards (id, materia_id, nota_id, frente, verso, ordem, explica) values (?, ?, ?, ?, ?, ?, ?)
+     on conflict(id) do update set frente = excluded.frente, verso = excluded.verso, ordem = excluded.ordem, materia_id = excluded.materia_id, explica = excluded.explica`
   );
-  flashcards.forEach((f, i) => por.run(ids[i], materiaId, notaId, f.frente, f.verso, i));
+  flashcards.forEach((f, i) => por.run(ids[i], materiaId, notaId, f.frente, f.verso, i, f.explica || ""));
   return ids.length;
 }
 

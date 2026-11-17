@@ -1,4 +1,4 @@
-// Pacote Sinapse: o formato universal de entrada de conteúdo (especificação em FORMATO.md).
+// Pacote resumo.com: o formato universal de entrada de conteúdo (especificação em FORMATO.md).
 // Um pacote é uma pasta (ou o .zip dela) com:
 //   materia.yml                      dados da matéria
 //   <NN - Módulo>/<Nota>.md          notas atômicas (propriedades YAML + Markdown)
@@ -240,6 +240,8 @@ export function analisarPacote(arquivos, opcoes = {}) {
       if (!f.frente || !f.verso) erro(onde, `flashcard ${i + 1}: precisa de pergunta (na linha do [!flashcard]) e resposta (nas linhas seguintes)`);
       else if (contarPalavras(f.verso) > 60) aviso(onde, `flashcard ${i + 1}: resposta longa (${contarPalavras(f.verso)} palavras); uma carta deve cobrar uma ideia só`);
     });
+    const semExplica = a.flashcards.filter((f) => !f.explica).length;
+    if (semExplica) aviso(onde, `${semExplica} flashcard(s) sem a linha "??" que explica a pergunta`);
     const frentes = a.flashcards.map((f) => slug(f.frente));
     if (new Set(frentes).size !== frentes.length) erro(onde, "há flashcards com a mesma pergunta nesta nota");
     a.questoes.forEach((q, i) => {

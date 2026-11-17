@@ -191,7 +191,9 @@ const RE_ALT = /^[-*+]\s+\[( |x|X)\]\s+(.*)$/;
 export const marcadorQuestao = (i) => `@@QUESTAO${i}@@`;
 
 function montarFlashcard(titulo, corpo) {
-  const linhas = corpo;
+  // linhas "?? ..." explicam o que a pergunta está pedindo: aparecem no "?" ao lado dela, não na resposta
+  const explica = corpo.filter((l) => /^\s*\?\?/.test(l)).map((l) => l.replace(/^\s*\?\?\s*/, "").trim()).filter(Boolean).join(" ");
+  const linhas = corpo.filter((l) => !/^\s*\?\?/.test(l));
   const corte = linhas.findIndex((l) => /^-{3,}\s*$/.test(l));
   let frente = titulo;
   let verso;
@@ -203,7 +205,7 @@ function montarFlashcard(titulo, corpo) {
     frente = primeira >= 0 ? linhas[primeira] : "";
     verso = primeira >= 0 ? linhas.slice(primeira + 1).join("\n") : "";
   } else verso = linhas.join("\n");
-  return { frente: frente.trim(), verso: verso.trim() };
+  return { frente: frente.trim(), verso: verso.trim(), explica };
 }
 
 function montarQuestao(titulo, corpo) {

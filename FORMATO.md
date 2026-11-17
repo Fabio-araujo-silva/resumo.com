@@ -1,6 +1,6 @@
-# Pacote Sinapse — formato universal de conteúdo (v1)
+# Pacote resumo.com — formato universal de conteúdo (v1)
 
-Todo conteúdo entra no Sinapse como um **pacote**: uma pasta comum (ou o `.zip` dela) com arquivos
+Todo conteúdo entra no resumo.com como um **pacote**: uma pasta comum (ou o `.zip` dela) com arquivos
 Markdown. É o mesmo jeito de escrever do Obsidian/Mathsidian — propriedades YAML no topo, callouts
 `> [!tipo]`, links `[[Nota]]` — então a pasta também abre como um cofre.
 
@@ -112,6 +112,7 @@ Antes disso, ==a velocidade do corte importava mais que a precisão==. Veja como
 > Morton demonstrou o éter como anestésico no Massachusetts General Hospital.
 
 > [!flashcard] Quais são os três pilares do medo da cirurgia pré-moderna?
+> ?? Pede os três obstáculos que limitaram a cirurgia até o século XIX; basta nomear os três.
 > Dor, infecção e hemorragia.
 
 > [!flashcard] Qual era a mortalidade pós-operatória da "febre traumática"?
@@ -147,7 +148,7 @@ Escreva `> [!tipo] Título opcional` e continue o bloco nas linhas seguintes, to
 | `exemplo` | Exemplo | Caso ou exemplo curto. |
 | `objetivos` | O que você vai aprender | Só em notas `tipo: mapa`. |
 | `essencial` | Essencial para a prova | **O mínimo que precisa estar na cabeça.** É o bloco que o modo prova mostra. |
-| `flashcard` | (vira carta) | Pergunta na linha do `[!flashcard]`, resposta embaixo. Não aparece no texto. |
+| `flashcard` | (vira carta) | Pergunta na linha do `[!flashcard]`, resposta embaixo. Uma linha começando com `??` explica o que a pergunta está pedindo (aparece no "?" ao lado dela). Não aparece no texto. |
 | `questao` | Teste-se | Enunciado na linha do `[!questao]`; alternativas `- [ ]` e a correta `- [x]`; depois de uma linha `>` vazia, o comentário. Sem alternativas, vira questão aberta (o corpo é a resposta). |
 
 ### 3.2 Texto
@@ -197,13 +198,13 @@ de estudo. Ela não precisa de flashcards. No leitor, ela ganha sozinha o grafo 
 | Tamanho da nota | ideal 150–450 palavras; **aviso** acima de 650; **erro** acima de 1300 |
 | `resumo` | obrigatório |
 | Título | único na matéria |
-| Flashcards | 2 a 6 por nota; pergunta e resposta preenchidas; resposta curta (aviso acima de 60 palavras) |
+| Flashcards | 2 a 6 por nota; pergunta e resposta preenchidas; resposta curta (aviso acima de 60 palavras); linha `??` explicando a pergunta (aviso se faltar) |
 | Questão de múltipla escolha | 2+ alternativas, exatamente uma `- [x]` |
 | Nota com `prova: true` | precisa de um bloco `[!essencial]` |
 | Figuras | o arquivo precisa estar em `anexos/`; até 4 MB |
 | Links | aviso se a nota não liga nem é ligada por ninguém |
 
-## 5. Como escrever um bom resumo (o padrão do Sinapse)
+## 5. Como escrever um bom resumo (o padrão do resumo.com)
 
 O resumo existe para **quem vai fazer prova**: curto, organizado e fiel ao material.
 
@@ -218,7 +219,9 @@ O resumo existe para **quem vai fazer prova**: curto, organizado e fiel ao mater
 5. **Conteúdo de prova.** Marque `prova: true` no que o dono da matéria disse que cai (e no que o
    material destaca como "cai em prova"). `prioridade: alta` para o que é certo de cair. O bloco
    `[!essencial]` é uma cola honesta: 3 a 6 itens que, sozinhos, salvam a questão.
-6. **Flashcards** cobram uma coisa só, com resposta que cabe numa linha. Bons: "Quem introduziu a
+6. **Flashcards** cobram uma coisa só, com resposta que cabe numa linha. Toda carta leva uma linha
+   `??` de uma frase dizendo o que a pergunta quer (o contexto, o tipo de resposta esperada, a
+   pegadinha), **sem entregar a resposta**. Bons: "Quem introduziu a
    ligadura de vasos?" Ruins: "Fale sobre Ambroise Paré."
 7. **Português do Brasil, direto.** Sem "nesta nota veremos"; comece pelo conteúdo.
 
