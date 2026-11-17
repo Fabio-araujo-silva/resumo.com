@@ -25,28 +25,26 @@ export function textoParaFalar(nota) {
 
 export function registrarVoz(app, { db, config }) {
   const chave = config.elevenlabsChave;
-  const vozes = { f: { id: config.vozFeminina, nome: "Sarah" }, m: { id: config.vozMasculina, nome: "Brian" } };
+  // uma voz só: masculina (Brian), mais expressiva, sempre em português do Brasil
+  const voz = { id: config.vozMasculina, nome: "Brian" };
+  const AJUSTES = { stability: 0.3, similarity_boost: 0.8, style: 0.45, use_speaker_boost: true, speed: 1.0 };
   const limite = criarLimitador(30, 60 * 60 * 1000); // gerações novas por conta por hora
   const pasta = path.join(config.dataDir, "voz");
   const gerando = new Map(); // a mesma nota pedida duas vezes ao mesmo tempo gera uma vez só
 
   app.get("/api/voz", async () => ({
     disponivel: !!chave,
-    vozes: [
-      { id: "f", nome: "Feminina", detalhe: vozes.f.nome },
-      { id: "m", nome: "Masculina", detalhe: vozes.m.nome },
-    ],
+    voz: { nome: "Masculina", detalhe: voz.nome, idioma: "pt-BR" },
   }));
 
   app.get("/api/voz/:materia/:slug", async (req, reply) => {
     const user = exigirUsuario(req);
     if (!chave) throw new HttpError(503, "a leitura em voz alta não está configurada neste servidor");
-    const qual = req.query.voz === "m" ? "m" : "f";
     const n = db.prepare("select * from notas where id = ?").get(req.params.materia + "/" + req.params.slug);
     const lib = materiasLiberadas(db, user);
     if (!n || (user.papel !== "admin" && !n.publicada) || (lib && !lib.has(n.materia_id))) throw new HttpError(404, "nota não encontrada");
     const texto = textoParaFalar(n);
-    const arquivo = path.join(pasta, `${sha1(qual + "|" + config.vozModelo + "|" + vozes[qual].id + "|" + texto).slice(0, 24)}.mp3`);
+    const arquivo = path.join(pasta, `${sha1(JSON.stringify(AJUSTES) + "|" + config.vozModelo + "|" + voz.id + "|" + texto).slice(0, 24)}.mp3`);
 
     reply.header("cache-control", "private, max-age=86400");
     if (fs.existsSync(arquivo)) return reply.type("audio/mpeg").send(fs.createReadStream(arquivo));
@@ -56,10 +54,10 @@ export function registrarVoz(app, { db, config }) {
     }
     if (user.papel !== "admin" && !limite.checar(user.id)) throw new HttpError(429, "muitas leituras novas em pouco tempo; tente daqui a pouco");
 
-    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${vozes[qual].id}/stream?output_format=mp3_44100_128`, {
+    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voz.id}/stream?output_format=mp3_44100_128`, {
       method: "POST",
       headers: { "xi-api-key": chave, "content-type": "application/json", accept: "audio/mpeg" },
-      body: JSON.stringify({ text: texto, model_id: config.vozModelo, language_code: "pt", voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 1.0 } }),
+      body: JSON.stringify({ text: texto, model_id: config.vozModelo, language_code: "pt", voice_settings: AJUSTES }),
     }).catch(() => null);
     if (!r || !r.ok || !r.body) {
       let detalhe = "";
