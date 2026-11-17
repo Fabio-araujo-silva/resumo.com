@@ -11,8 +11,10 @@ Feita para medicina (o visual, o vocabulário e o modo prova partem daí), mas s
 
 - **Notas atômicas.** Cada nota ensina uma ideia e liga para as outras. Dá para ver a matéria inteira
   como um grafo (filtrando por semestre, matéria, só prova, não lidas) e clicar de nota em nota.
-- **Prateleira.** A mesma biblioteca em ordem de estudo: semestre → matéria → módulos em fileiras →
-  notas, com o progresso de leitura.
+- **Prateleira.** A mesma biblioteca em ordem de estudo: semestre → matéria → avaliação (N1 e N2) →
+  módulos em fileiras → notas, com o progresso de leitura.
+- **N1 e N2.** Toda matéria é dividida em duas avaliações: cada módulo pertence a uma delas, e cada
+  uma tem a sua data, o seu modo prova e as suas cartas.
 - **Leitura interativa.** Tudo na nota é clicável:
   - **Testar-se:** os termos em negrito e os grifos viram lacunas que abrem com um clique;
   - tabelas com **colunas que se escondem** para testar a memória;
@@ -26,16 +28,20 @@ Feita para medicina (o visual, o vocabulário e o modo prova partem daí), mas s
   (por prioridade), as dicas de prova, as questões e as cartas da prova, com a contagem de dias.
 - **Flashcards.** Um baralho por matéria, agendado com o **algoritmo do Anki** (SM-2, agendador v2,
   valores padrão): passos de 1 e 10 min, De novo / Difícil / Bom / Fácil, facilidade, lapsos,
-  20 cartas novas por dia, virada do dia às 4h.
+  virada do dia às 4h. O assinante escolhe quantas cartas novas quer por dia (20 por padrão) e pode
+  liberar mais na hora em que o baralho acaba.
 - **Leitor de PDF embutido** para resumos que já existem em PDF.
 - **Tema escuro** (padrão) e **claro**. Funciona no celular.
 
 ## O que o administrador faz
 
 - **Acessos:** cria logins (a senha é gerada e mostrada uma vez), define validade da assinatura,
-  libera todas as matérias ou só algumas, desativa, troca senha, derruba sessões.
+  libera todas as matérias ou só algumas, desativa, troca senha, derruba sessões. A senha que o
+  administrador entrega é provisória: no primeiro acesso a pessoa cria a própria (e troca quando
+  quiser em Conta).
 - **Conteúdo:** edita matérias e notas (editor com prévia ao vivo), marca o que é **conteúdo de prova**
-  e a prioridade, define a data e o foco da prova, publica ou esconde notas.
+  e a prioridade, separa os módulos entre N1 e N2, define a data e o foco de cada prova, publica ou
+  esconde notas.
 - **Importar:** sobe um pacote `.zip` (confere antes de publicar) ou um PDF pronto.
 - **Gerar com IA:** entrega os PDFs/slides da matéria, diz o que cai na prova, e a plataforma abre uma
   instância do Claude Code no computador, que escreve o resumo no padrão, valida e publica.
@@ -60,6 +66,9 @@ Para desenvolver (servidor com recarga + Vite em http://localhost:5310):
     npm run dev
 
 Tudo o que importa fica em `dados/` (banco, figuras e PDFs). Backup = copiar essa pasta.
+
+Para abrir em outro aparelho da mesma rede, use o IP do computador no lugar de `localhost`
+(por exemplo `http://192.168.0.5:4310`); o servidor já escuta em todas as interfaces.
 
 ## Como o conteúdo entra
 
@@ -105,8 +114,8 @@ todo vazamento carregue o nome de quem vazou.
 
 ## Testes
 
-    npm test            # servidor: agendador do Anki, formato de pacote, API, gerador (44 testes)
-    npm run test:e2e    # navegador: leitura, grafo, prova, flashcards, proteção, painel, celular (34 cenários)
+    npm test            # servidor: agendador do Anki, formato de pacote, API, gerador (48 testes)
+    npm run test:e2e    # navegador: leitura, grafo, prova, flashcards, proteção, painel, celular (38 cenários)
 
 Os testes de navegador usam o Chrome instalado e um servidor próprio com banco temporário. A geração
 com IA é testada com um Claude de mentira (`server/test/claude-de-mentira.mjs`), que segue o mesmo

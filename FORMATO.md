@@ -40,14 +40,33 @@ semestre: 4                    # número inteiro
 eixo: Práticas Clínicas, Habilidades e Atitudes Médicas   # opcional
 descricao: Do centro cirúrgico aos procedimentos.          # opcional, uma frase
 cor: "#1f6f8b"                 # opcional
-prova:                         # opcional
-  data: 2026-12-04
-  foco: |
-    O que o professor disse que cai, em texto livre.
-modulos:                       # opcional: descrição de cada módulo
+avaliacao: n1                  # a que avaliação os módulos pertencem: n1 (padrão) ou n2
+prova:                         # opcional: data e foco de cada avaliação
+  n1:
+    data: 2026-10-02
+    foco: |
+      O que o professor disse que cai na N1, em texto livre.
+  n2:
+    data: 2026-12-04
+    foco: Do módulo 6 em diante.
+modulos:                       # opcional: descrição e avaliação de cada módulo
   - pasta: "01 - História da Cirurgia"
     descricao: Dos papiros egípcios à cirurgia robótica.
+  - pasta: "09 - Cricotireoidostomia"
+    avaliacao: n2              # este módulo cai na N2, mesmo com a matéria sendo n1
 ```
+
+### Avaliações: N1 e N2
+
+Toda matéria é dividida em duas avaliações. **Cada módulo pertence à N1 ou à N2**; é isso que separa
+a prateleira, o modo prova e os flashcards.
+
+- `avaliacao` na raiz diz a avaliação de todos os módulos (sem ela, `n1`).
+- `avaliacao` dentro de um item de `modulos` vale só para aquele módulo.
+- `prova.n1` e `prova.n2` têm cada uma a sua `data` e o seu `foco`. Um `prova.data`/`prova.foco`
+  soltos valem para a avaliação da raiz.
+- Um pacote que não fala de avaliação não muda a separação que já existe no site. O administrador
+  também pode mover módulos entre N1 e N2 no painel.
 
 ## 3. Uma nota atômica
 
