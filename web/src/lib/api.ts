@@ -1,8 +1,8 @@
 // Chamadas à API. Toda escrita leva o cabeçalho anti-CSRF; 401 avisa o app que a sessão caiu.
 
-export type Usuario = { id: string; email: string; nome: string; papel: "admin" | "aluno"; acessoTotal: boolean; expiraEm: number | null; etiqueta: string };
-export type Materia = { id: string; nome: string; semestre: number; eixo: string; descricao: string; cor: string; prova_data: string | null };
-export type Modulo = { id: string; materia_id: string; titulo: string; descricao: string; ordem: number };
+export type Usuario = { id: string; email: string; nome: string; papel: "admin" | "aluno"; acessoTotal: boolean; expiraEm: number | null; etiqueta: string; novosPorDia: number; senhaProvisoria: boolean };
+export type Materia = { id: string; nome: string; semestre: number; eixo: string; descricao: string; cor: string; prova_data: string | null; n2_data: string | null };
+export type Modulo = { id: string; materia_id: string; titulo: string; descricao: string; ordem: number; avaliacao: "n1" | "n2" };
 export type NotaMeta = {
   id: string; materia: string; modulo: string; titulo: string; resumo: string; prova: boolean; prioridade: number;
   tags: string[]; minutos: number; pdf: boolean; mapa: boolean; rascunho: boolean; cards: number;
@@ -18,16 +18,19 @@ export type NotaCompleta = {
   anterior: { id: string; titulo: string } | null; proxima: { id: string; titulo: string } | null; cards: number;
   cartas: { frente: string; verso: string }[];
 };
-export type Contagem = { novos: number; aprendendo: number; revisar: number; total: number };
+export type Contagem = { novos: number; aprendendo: number; revisar: number; total: number; novasRestantes: number; limite: number };
 export type Rodada = {
   carta: { id: string; frente: string; verso: string; nota: { id: string; titulo: string }; estado: string } | null;
   previsoes?: Record<string, string>; contagem: Contagem; proximaEm: number | null;
   agendada?: { estado: string; intervalo: number; vence: number };
 };
-export type Baralho = { materia: string; nome: string; semestre: number; cor: string; novos: number; aprendendo: number; revisar: number; total: number; estudadas: number; maduras: number; deProva: number };
+export type Baralho = { materia: string; nome: string; semestre: number; cor: string; novos: number; aprendendo: number; revisar: number; total: number; estudadas: number; maduras: number; deProva: number; novasRestantes: number; avaliacoes: { av: "n1" | "n2"; cartas: number }[] };
+export type LimiteCartas = { novosPorDia: number; padrao: number; minimo: number; maximo: number };
 export type Estatisticas = { feitasHoje: number; sequencia: number; retencao: number | null; semana: { dia: string; n: number }[] };
 export type ProvaDados = {
   materia: { id: string; nome: string; cor: string; semestre: number; provaData: string | null; provaFoco: string };
+  av: "n1" | "n2";
+  avaliacoes: { av: "n1" | "n2"; notas: number; data: string | null }[];
   notas: { id: string; titulo: string; resumo: string; modulo: string; prioridade: number; minutos: number; essencial: string[]; lida: boolean }[];
   dicas: { nota: { id: string; titulo: string }; titulo: string; html: string }[];
   questoes: { nota: { id: string; titulo: string }; html: string }[];
