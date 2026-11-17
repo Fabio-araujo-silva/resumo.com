@@ -56,7 +56,7 @@ test("pendências: separar pelo flashcard e pela nota, ver na aba e dar baixa", 
   await page.locator('.resposta[data-resposta="4"]').click();
   await expect(page.locator("[data-testid=assunto]")).not.toHaveText("Plexo braquial");
   await page.click("[data-testid=assunto]");
-  await page.locator(".modal .link-botao", { hasText: "Guarde nas pendências" }).click();
+  await page.click("[data-testid=guardar-pendencia]");
   await expect(page.locator("[data-testid=conta-pendencias]")).toHaveText("2");
 
   // pela nota

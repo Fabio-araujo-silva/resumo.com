@@ -25,7 +25,7 @@ const { app, db } = await montarApp({
 });
 
 criarUsuario(db, { ...ADMIN, papel: "admin" });
-for (const conta of [ANA, BIA, DUDA]) criarUsuario(db, conta);
+for (const conta of [ANA, BIA, DUDA, { email: "eva@e2e.com", senha: "eva-senha-123", nome: "Eva Mota" }]) criarUsuario(db, conta);
 
 const anatomia = analisarPacote(
   pacoteAnatomia({

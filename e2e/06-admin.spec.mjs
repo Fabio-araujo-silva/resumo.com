@@ -21,7 +21,7 @@ test("aluno não entra no painel", async ({ browser }) => {
 test("acessos: criar um login, a pessoa entra; desativar derruba; senha nova", async ({ page, browser }) => {
   await page.goto("/admin");
   const tabela = page.locator("[data-testid=tabela-usuarios]");
-  await expect(tabela.locator("tbody tr")).toHaveCount(4);
+  await expect(tabela.locator("tbody tr")).toHaveCount(5);
 
   await page.locator("button", { hasText: "Novo acesso" }).click();
   await page.fill('.modal input[name="nome"]', "Carla Dias");
