@@ -19,6 +19,8 @@ export const LIMITES = {
   imagemMaxBytes: 4 * 1024 * 1024,
   pdfMaxBytes: 60 * 1024 * 1024,
 };
+export const AVALIACOES = ["n1", "n2"];
+const normAv = (v) => String(v ?? "").trim().toLowerCase();
 const PRIORIDADES = { alta: 1, media: 2, média: 2, baixa: 3 };
 const PASTA_ANEXOS = /^(anexos|assets|imagens|figuras)$/i;
 const IGNORAR = /(^|\/)(\.[^/]+|_[^/]*|node_modules|README\.md|FORMATO\.md|PEDIDO\.md)(\/|$)/i;
@@ -113,6 +115,14 @@ export function analisarPacote(arquivos, opcoes = {}) {
       erro(nomeYml, "YAML inválido: " + String(e.message).split("\n")[0]);
     }
   }
+  // avaliação padrão dos módulos desta matéria; cada módulo pode dizer a sua
+  const avPadrao = normAv(m.avaliacao) || "n1";
+  if (nomeYml && !AVALIACOES.includes(avPadrao)) erro(nomeYml, `'avaliacao' inválida: "${m.avaliacao}" (use n1 ou n2)`);
+  const pv = m.prova && typeof m.prova === "object" ? m.prova : {};
+  // prova.n1 / prova.n2; "prova.data" e "prova.foco" soltos valem para a avaliação padrão da matéria
+  const provaDe = (av) => (pv[av] && typeof pv[av] === "object" ? pv[av] : pv[av.toUpperCase()] && typeof pv[av.toUpperCase()] === "object" ? pv[av.toUpperCase()] : avPadrao === av ? pv : {});
+  const dataDe = (o) => (o.data != null ? String(o.data instanceof Date ? o.data.toISOString().slice(0, 10) : o.data).trim() : null);
+  const focoDe = (o) => (o.foco != null ? String(o.foco).trim() : null);
   const materia = {
     slug: String(m.slug || "").trim(),
     nome: String(m.nome || "").trim(),
@@ -120,8 +130,11 @@ export function analisarPacote(arquivos, opcoes = {}) {
     eixo: String(m.eixo || "").trim(),
     descricao: String(m.descricao || "").trim(),
     cor: String(m.cor || "").trim(),
-    provaData: m.prova && m.prova.data != null ? String(m.prova.data instanceof Date ? m.prova.data.toISOString().slice(0, 10) : m.prova.data).trim() : null,
-    provaFoco: m.prova && m.prova.foco != null ? String(m.prova.foco).trim() : null,
+    avaliacao: AVALIACOES.includes(avPadrao) ? avPadrao : "n1",
+    provaData: dataDe(provaDe("n1")),
+    provaFoco: focoDe(provaDe("n1")),
+    n2Data: dataDe(provaDe("n2")),
+    n2Foco: focoDe(provaDe("n2")),
   };
   if (nomeYml) {
     if (!materia.slug) erro(nomeYml, "falta 'slug' (identificador da matéria, ex.: tecnica-cirurgica)");
@@ -129,7 +142,7 @@ export function analisarPacote(arquivos, opcoes = {}) {
     if (!materia.nome) erro(nomeYml, "falta 'nome'");
     if (!Number.isInteger(materia.semestre) || materia.semestre < 1 || materia.semestre > 14) erro(nomeYml, "'semestre' precisa ser um número inteiro de 1 a 14");
     if (materia.cor && !/^#[0-9a-f]{6}$/i.test(materia.cor)) erro(nomeYml, `'cor' inválida: "${materia.cor}" (use o formato "#1f6f8b")`);
-    if (materia.provaData && !/^\d{4}-\d{2}-\d{2}$/.test(materia.provaData)) erro(nomeYml, "'prova.data' precisa estar no formato AAAA-MM-DD");
+    for (const d of [materia.provaData, materia.n2Data]) if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) erro(nomeYml, "a data da prova precisa estar no formato AAAA-MM-DD");
   }
   const descModulos = new Map();
   for (const d of Array.isArray(m.modulos) ? m.modulos : []) {
@@ -148,7 +161,11 @@ export function analisarPacote(arquivos, opcoes = {}) {
     const d = descModulos.get(pasta) || {};
     const titulo = String(d.titulo || tituloPasta).trim();
     const s = slug(titulo);
-    if (!modulos.has(s)) modulos.set(s, { slug: s, pasta, titulo, descricao: String(d.descricao || "").trim(), ordem: ordem ?? 999 });
+    if (!modulos.has(s)) {
+      const av = normAv(d.avaliacao) || materia.avaliacao;
+      if (!AVALIACOES.includes(av)) erro(nomeYml || "materia.yml", `módulo "${pasta}": 'avaliacao' inválida: "${d.avaliacao}" (use n1 ou n2)`);
+      modulos.set(s, { slug: s, pasta, titulo, descricao: String(d.descricao || "").trim(), ordem: ordem ?? 999, avaliacao: AVALIACOES.includes(av) ? av : "n1", avaliacaoDita: !!normAv(d.avaliacao) || !!normAv(m.avaliacao) });
+    }
     return modulos.get(s);
   };
 

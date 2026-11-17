@@ -125,6 +125,8 @@ export function gravarModulo(db, materiaId, mod) {
      on conflict(id) do update set titulo = excluded.titulo, ordem = excluded.ordem,
        descricao = case when excluded.descricao != '' then excluded.descricao else modulos.descricao end`
   ).run(id, materiaId, mod.slug, mod.titulo, mod.descricao || "", mod.ordem ?? 999);
+  // a avaliação só muda quando quem grava diz qual é (um pacote que não fala de N1/N2 não mexe nela)
+  if (mod.avaliacao && mod.avaliacaoDita !== false) db.prepare("update modulos set avaliacao = ? where id = ?").run(mod.avaliacao, id);
   return id;
 }
 
@@ -152,13 +154,13 @@ export function importarPacote(db, dataDir, p, opcoes = {}) {
   transacao(db, () => {
     const existente = db.prepare("select * from materias where id = ?").get(mid);
     if (!existente)
-      db.prepare("insert into materias (id, nome, semestre, eixo, descricao, cor, prova_data, prova_foco, criado_em, atualizado_em) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
-        mid, p.materia.nome, p.materia.semestre, p.materia.eixo, p.materia.descricao, p.materia.cor, p.materia.provaData, p.materia.provaFoco || "", agora, agora
+      db.prepare("insert into materias (id, nome, semestre, eixo, descricao, cor, prova_data, prova_foco, n2_data, n2_foco, criado_em, atualizado_em) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(
+        mid, p.materia.nome, p.materia.semestre, p.materia.eixo, p.materia.descricao, p.materia.cor, p.materia.provaData, p.materia.provaFoco || "", p.materia.n2Data ?? null, p.materia.n2Foco || "", agora, agora
       );
     else
-      db.prepare("update materias set nome = ?, semestre = ?, eixo = ?, descricao = ?, cor = ?, prova_data = ?, prova_foco = ?, atualizado_em = ? where id = ?").run(
+      db.prepare("update materias set nome = ?, semestre = ?, eixo = ?, descricao = ?, cor = ?, prova_data = ?, prova_foco = ?, n2_data = ?, n2_foco = ?, atualizado_em = ? where id = ?").run(
         p.materia.nome, p.materia.semestre, p.materia.eixo || existente.eixo, p.materia.descricao || existente.descricao, p.materia.cor || existente.cor,
-        p.materia.provaData ?? existente.prova_data, p.materia.provaFoco ?? existente.prova_foco, agora, mid
+        p.materia.provaData ?? existente.prova_data, p.materia.provaFoco ?? existente.prova_foco, p.materia.n2Data ?? existente.n2_data, p.materia.n2Foco ?? existente.n2_foco, agora, mid
       );
     for (const a of p.anexos) gravarAnexo(db, dataDir, mid, a.caminho, a.bytes, a.mime);
     const idModulo = new Map();
@@ -217,11 +219,14 @@ export function exportarPacote(db, dataDir, materiaId) {
   if (m.eixo) yml.eixo = m.eixo;
   if (m.descricao) yml.descricao = m.descricao;
   if (m.cor) yml.cor = m.cor;
-  if (m.prova_data || m.prova_foco) yml.prova = { ...(m.prova_data ? { data: m.prova_data } : {}), ...(m.prova_foco ? { foco: m.prova_foco } : {}) };
+  const prova = {};
+  if (m.prova_data || m.prova_foco) prova.n1 = { ...(m.prova_data ? { data: m.prova_data } : {}), ...(m.prova_foco ? { foco: m.prova_foco } : {}) };
+  if (m.n2_data || m.n2_foco) prova.n2 = { ...(m.n2_data ? { data: m.n2_data } : {}), ...(m.n2_foco ? { foco: m.n2_foco } : {}) };
+  if (Object.keys(prova).length) yml.prova = prova;
   yml.modulos = [];
   modulos.forEach((mod, i) => {
     const pasta = `${doisDigitos(i + 1)} - ${nomeArquivo(mod.titulo)}`;
-    yml.modulos.push({ pasta, titulo: mod.titulo, ...(mod.descricao ? { descricao: mod.descricao } : {}) });
+    yml.modulos.push({ pasta, titulo: mod.titulo, avaliacao: mod.avaliacao, ...(mod.descricao ? { descricao: mod.descricao } : {}) });
     const notas = db.prepare("select * from notas where modulo_id = ? order by ordem, titulo").all(mod.id);
     notas.forEach((n, j) => {
       const props = { id: n.slug, titulo: n.titulo, resumo: n.resumo, prova: !!n.prova };

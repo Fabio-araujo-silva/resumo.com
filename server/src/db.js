@@ -161,6 +161,15 @@ const MIGRACOES = [
      criado_em integer not null,
      terminou_em integer
    );`,
+  // Avaliações: cada módulo (subconteúdo) de uma matéria pertence à N1 ou à N2, e cada avaliação
+  // tem data e foco próprios (prova_data/prova_foco passam a ser os da N1). Limite diário de cartas
+  // novas por assinante.
+  `alter table modulos add column avaliacao text not null default 'n1';
+   alter table materias add column n2_data text;
+   alter table materias add column n2_foco text not null default '';
+   alter table users add column novos_por_dia integer not null default 20;`,
+  // Senha provisória: gerada pelo administrador; a pessoa é levada a criar a própria no primeiro acesso.
+  `alter table users add column senha_provisoria integer not null default 0;`,
 ];
 
 export function abrirDb(dataDir) {
