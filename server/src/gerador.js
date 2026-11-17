@@ -61,7 +61,7 @@ function montarPedido({ materia, existe, materiais, conteudosProva, instrucoes, 
   l.push("4. Rode `node validar.mjs` e corrija até não haver erros (e o mínimo de avisos).");
   l.push("5. Termine com um resumo curto do que criou: módulos, quantas notas, quais marcou como prova.", "");
   l.push("## A matéria", "");
-  l.push(`\`pacote/materia.yml\` já existe com os dados abaixo. Não mude o \`slug\`. Você pode completar \`descricao\`, \`eixo\` e a lista \`modulos\` (pasta + descrição).`, "");
+  l.push(`\`pacote/materia.yml\` já existe com os dados abaixo. Não mude o \`slug\` nem a \`avaliacao\` (ela diz se o conteúdo é da prova N1 ou N2). Você pode completar \`descricao\`, \`eixo\` e a lista \`modulos\` (pasta + descrição).`, "");
   l.push("```yaml", YAML.stringify(materia.yml).trim(), "```", "");
   l.push("## Materiais", "");
   for (const m of materiais) l.push(`- \`materiais/${m.nome}\`${m.texto ? ` (texto extraído em \`materiais/_texto/${m.texto}\`)` : ""}`);
@@ -219,6 +219,9 @@ export async function gerarResumo(db, config, pedido) {
   }
 
   const yml = { formato: 1, slug: mslug, nome, semestre };
+  // a que avaliação (N1 ou N2) pertence o conteúdo novo
+  const av = String(pedido.avaliacao || "").toLowerCase();
+  if (av === "n1" || av === "n2") yml.avaliacao = av;
   if (existente?.eixo) yml.eixo = existente.eixo;
   if (existente?.descricao) yml.descricao = existente.descricao;
   if (existente?.cor) yml.cor = existente.cor;

@@ -4,7 +4,7 @@
 //   node server/cli.js validar  <pasta|pacote.zip>
 //   node server/cli.js importar <pasta|pacote.zip> [--substituir] [--rascunho] [--url https://site --token XXX]
 //   node server/cli.js exportar <materia> <destino.zip>
-//   node server/cli.js gerar --materia <slug> --nome "Nome" --semestre N [--prova "o que cai"] [--rascunho] <arquivos...>
+//   node server/cli.js gerar --materia <slug> --nome "Nome" --semestre N [--avaliacao n1|n2] [--prova "o que cai"] [--rascunho] <arquivos...>
 //   node server/cli.js criar-admin --email voce@exemplo.com --senha ******** [--nome "Você"]
 //   node server/cli.js listar
 import fs from "node:fs";
@@ -161,6 +161,7 @@ const comandos = {
       conteudosProva: typeof op.prova === "string" ? op.prova : "",
       instrucoes: typeof op.instrucoes === "string" ? op.instrucoes : "",
       rascunho: !!op.rascunho,
+      avaliacao: typeof op.avaliacao === "string" ? op.avaliacao : "",
       enviarPara: op.url ? { url: op.url, token: op.token, enviar } : null,
       aoLogar: (linha) => console.log(linha),
     });
