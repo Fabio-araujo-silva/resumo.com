@@ -15,6 +15,7 @@ import { registrarConteudo } from "./conteudo.js";
 import { registrarFlashcards } from "./flashcards.js";
 import { registrarAdmin } from "./admin.js";
 import { registrarVoz } from "./voz.js";
+import { registrarOfensiva } from "./ofensiva.js";
 
 const CSP = [
   "default-src 'self'",
@@ -79,6 +80,7 @@ export async function montarApp(sobrepor = {}) {
   registrarFlashcards(app, { db, config, agora: sobrepor.agora });
   registrarAdmin(app, { db, config });
   registrarVoz(app, { db, config });
+  registrarOfensiva(app, { db, config, agora: sobrepor.agora });
 
   app.get("/api/saude", async () => ({ ok: true }));
 
