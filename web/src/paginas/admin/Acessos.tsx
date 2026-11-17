@@ -7,7 +7,7 @@ import { Carregando, Modal, Selo } from "../../componentes/ui";
 
 type UsuarioAdmin = {
   id: string; email: string; nome: string; papel: "admin" | "aluno"; ativo: boolean; expiraEm: number | null; acessoTotal: boolean; criadoEm: number;
-  ultimoAcesso: number | null; etiqueta: string; materias: string[]; sessoes: number; lidas: number; revisoes: number;
+  ultimoAcesso: number | null; senhaProvisoria: boolean; etiqueta: string; materias: string[]; sessoes: number; lidas: number; revisoes: number;
 };
 type Form = { nome: string; email: string; papel: "admin" | "aluno"; validade: string; acessoTotal: boolean; materias: string[] };
 const paraData = (ms: number | null) => (ms ? new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : "");
@@ -18,7 +18,7 @@ function Credenciais({ login, senha, aoFechar }: { login: string; senha: string;
   const [copiado, setCopiado] = useState(false);
   return (
     <Modal titulo="Acesso pronto" aoFechar={aoFechar}>
-      <p>Mande estes dados para a pessoa. <strong>A senha só aparece agora</strong>; depois, só gerando outra.</p>
+      <p>Mande estes dados para a pessoa. <strong>A senha só aparece agora</strong>; depois, só gerando outra. Ela é provisória: no primeiro acesso a pessoa cria a própria.</p>
       <pre className="credenciais" data-testid="credenciais">{texto}</pre>
       <div className="linha-botoes">
         <button type="button" className="botao primario" onClick={() => navigator.clipboard.writeText(texto).then(() => setCopiado(true))}>
@@ -152,6 +152,7 @@ export function Acessos() {
                     {!u.ativo ? <Selo tipo="rascunho">desativado</Selo> : vencido ? <Selo tipo="rascunho">vencido</Selo> : <Selo tipo="neutro">ativo</Selo>}
                     {u.expiraEm && !vencido && <small>até {new Date(u.expiraEm).toLocaleDateString("pt-BR")}</small>}
                     {u.sessoes > 0 && <small>{u.sessoes} sessão(ões) aberta(s)</small>}
+                    {u.senhaProvisoria && <small>senha provisória (ainda não criou a dela)</small>}
                   </td>
                   <td>{u.papel === "admin" || u.acessoTotal ? "Todas" : u.materias.length ? u.materias.map((m) => idx.materia.get(m)?.nome || m).join(", ") : <em>nenhuma</em>}</td>
                   <td><small>{u.lidas} nota(s) lida(s)</small><small>{u.revisoes} revisão(ões)</small></td>

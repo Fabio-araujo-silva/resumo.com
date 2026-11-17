@@ -7,8 +7,8 @@ import { ConteudoNota } from "../../componentes/ConteudoNota";
 import { Icone } from "../../componentes/Icone";
 import { Carregando, Selo, Vazio } from "../../componentes/ui";
 
-type MateriaAdmin = { id: string; nome: string; semestre: number; eixo: string; descricao: string; cor: string; provaData: string | null; provaFoco: string; atualizadoEm: number; notas: number; deProva: number; rascunhos: number; flashcards: number };
-type NotaAdmin = { id: string; slug: string; titulo: string; resumo: string; prova: boolean; prioridade: number; publicada: boolean; minutos: number; pdf: boolean; modulo: string; cards: number; atualizado_em: number };
+type MateriaAdmin = { id: string; nome: string; semestre: number; eixo: string; descricao: string; cor: string; provaData: string | null; provaFoco: string; n2Data: string | null; n2Foco: string; modulos: { slug: string; titulo: string; avaliacao: string }[]; atualizadoEm: number; notas: number; deProva: number; rascunhos: number; flashcards: number };
+type NotaAdmin = { id: string; slug: string; titulo: string; resumo: string; prova: boolean; prioridade: number; publicada: boolean; minutos: number; pdf: boolean; modulo: string; modulo_slug: string; avaliacao: string; cards: number; atualizado_em: number };
 
 export function ConteudoLista() {
   const { avisar, recarregar } = useApp();
@@ -61,7 +61,7 @@ export function ConteudoMateria({ id }: { id: string }) {
   const { avisar, recarregar } = useApp();
   const [m, setM] = useState<MateriaAdmin | null | undefined>(undefined);
   const [notas, setNotas] = useState<NotaAdmin[]>([]);
-  const [f, setF] = useState({ nome: "", semestre: "", eixo: "", descricao: "", cor: "", provaData: "", provaFoco: "" });
+  const [f, setF] = useState({ nome: "", semestre: "", eixo: "", descricao: "", cor: "", provaData: "", provaFoco: "", n2Data: "", n2Foco: "" });
 
   const carregar = useCallback(async () => {
     try {
@@ -69,7 +69,7 @@ export function ConteudoMateria({ id }: { id: string }) {
       const achada = ms.materias.find((x) => x.id === id) || null;
       setM(achada);
       setNotas(ns.notas);
-      if (achada) setF({ nome: achada.nome, semestre: String(achada.semestre), eixo: achada.eixo, descricao: achada.descricao, cor: achada.cor, provaData: achada.provaData || "", provaFoco: achada.provaFoco });
+      if (achada) setF({ nome: achada.nome, semestre: String(achada.semestre), eixo: achada.eixo, descricao: achada.descricao, cor: achada.cor, provaData: achada.provaData || "", provaFoco: achada.provaFoco, n2Data: achada.n2Data || "", n2Foco: achada.n2Foco });
     } catch (e) {
       avisar(mensagem(e), "erro");
     }
@@ -85,7 +85,7 @@ export function ConteudoMateria({ id }: { id: string }) {
   const salvar = async (e: FormEvent) => {
     e.preventDefault();
     try {
-      await api.patch("/api/admin/materias/" + id, { ...f, semestre: Number(f.semestre), provaData: f.provaData || null });
+      await api.patch("/api/admin/materias/" + id, { ...f, semestre: Number(f.semestre), provaData: f.provaData || null, n2Data: f.n2Data || null });
       depois("Matéria salva.");
     } catch (err) {
       avisar(mensagem(err), "erro");
@@ -99,6 +99,15 @@ export function ConteudoMateria({ id }: { id: string }) {
     } catch (err) {
       avisar(mensagem(err), "erro");
       carregar();
+    }
+  };
+  // a que avaliação pertence um módulo (ou a matéria inteira, sem "modulo")
+  const moverAvaliacao = async (avaliacao: string, modulo?: string) => {
+    try {
+      await api.post(`/api/admin/materias/${id}/avaliacao`, { avaliacao, ...(modulo ? { modulo } : {}) });
+      depois(modulo ? `Módulo movido para a ${avaliacao.toUpperCase()}.` : `Toda a matéria agora é ${avaliacao.toUpperCase()}.`);
+    } catch (err) {
+      avisar(mensagem(err), "erro");
     }
   };
   const apagarNota = async (n: NotaAdmin) => {
@@ -124,7 +133,9 @@ export function ConteudoMateria({ id }: { id: string }) {
 
   if (m === undefined) return <Carregando />;
   if (m === null) return <Vazio titulo="Matéria não encontrada" />;
-  const modulos = [...new Set(notas.map((n) => n.modulo))];
+  const avDe = (mod: string) => notas.find((n) => n.modulo === mod)?.avaliacao || "n1";
+  // N1 primeiro, depois N2; dentro de cada uma, a ordem dos módulos
+  const modulos = [...new Set(notas.map((n) => n.modulo))].sort((a, b) => avDe(a).localeCompare(avDe(b)));
   return (
     <section className="admin-materia">
       <Link para="/admin/conteudo" className="voltar"><Icone nome="esquerda" tam={15} /> Todas as matérias</Link>
@@ -141,13 +152,26 @@ export function ConteudoMateria({ id }: { id: string }) {
           <div><button className="botao primario">Salvar matéria</button></div>
         </form>
         <form className="cartao form-coluna cartao-prova-admin" onSubmit={salvar}>
-          <h2 className="titulo-secao"><Icone nome="prova" tam={17} /> Prova</h2>
-          <label className="campo"><span>Data da prova</span><input type="date" name="provaData" value={f.provaData} onChange={(e) => setF({ ...f, provaData: e.target.value })} /></label>
-          <label className="campo">
-            <span>O que cai (aparece no topo do modo prova)</span>
-            <textarea rows={4} name="provaFoco" value={f.provaFoco} onChange={(e) => setF({ ...f, provaFoco: e.target.value })} placeholder="Ex.: capítulos 3 a 6; instrumentais; posições cirúrgicas…" />
-          </label>
-          <p className="sub">Marque na lista abaixo quais notas são conteúdo de prova: são elas que entram no modo prova e nas "cartas da prova".</p>
+          <h2 className="titulo-secao"><Icone nome="prova" tam={17} /> Provas: N1 e N2</h2>
+          <div className="grade-2">
+            <fieldset className="campo bloco-av">
+              <legend><b className="sigla-av">N1</b> Primeira avaliação</legend>
+              <label className="campo"><span>Data da prova</span><input type="date" name="provaData" value={f.provaData} onChange={(e) => setF({ ...f, provaData: e.target.value })} /></label>
+              <label className="campo">
+                <span>O que cai</span>
+                <textarea rows={3} name="provaFoco" value={f.provaFoco} onChange={(e) => setF({ ...f, provaFoco: e.target.value })} placeholder="Aparece no topo do modo prova da N1." />
+              </label>
+            </fieldset>
+            <fieldset className="campo bloco-av">
+              <legend><b className="sigla-av">N2</b> Segunda avaliação</legend>
+              <label className="campo"><span>Data da prova</span><input type="date" name="n2Data" value={f.n2Data} onChange={(e) => setF({ ...f, n2Data: e.target.value })} /></label>
+              <label className="campo">
+                <span>O que cai</span>
+                <textarea rows={3} name="n2Foco" value={f.n2Foco} onChange={(e) => setF({ ...f, n2Foco: e.target.value })} placeholder="Aparece no topo do modo prova da N2." />
+              </label>
+            </fieldset>
+          </div>
+          <p className="sub">Cada módulo abaixo pertence à N1 ou à N2 (troque no título do módulo). Marque também quais notas são conteúdo de prova: são elas que entram no modo prova e nas "cartas da prova" de cada avaliação.</p>
           <div><button className="botao primario">Salvar prova</button></div>
         </form>
       </div>
@@ -160,16 +184,36 @@ export function ConteudoMateria({ id }: { id: string }) {
               <Icone nome="check" tam={16} /> Publicar {m.rascunhos} rascunho(s)
             </button>
           )}
+          {notas.length > 0 && (
+            <span className="tudo-av" role="group" aria-label="Avaliação da matéria inteira">
+              Matéria inteira:
+              <button type="button" className="botao pequeno fantasma" onClick={() => moverAvaliacao("n1")} data-testid="tudo-n1">N1</button>
+              <button type="button" className="botao pequeno fantasma" onClick={() => moverAvaliacao("n2")} data-testid="tudo-n2">N2</button>
+            </span>
+          )}
           <Link para={`/admin/nota/${id}/nova`} className="botao fantasma"><Icone nome="mais" tam={16} /> Nova nota</Link>
           <a href={`/api/admin/materias/${id}/exportar`} className="botao fantasma" download><Icone nome="download" tam={16} /> Exportar pacote</a>
         </div>
       </div>
       {!notas.length && <Vazio titulo="Esta matéria ainda não tem notas">Importe um pacote, gere com o Claude ou crie a primeira nota.</Vazio>}
-      {modulos.map((mod) => (
-        <div className="tabela-rolagem" key={mod}>
+      {modulos.map((mod, i) => (
+        <div className="bloco-modulo" key={mod} data-modulo-av={avDe(mod)}>
+        {(i === 0 || avDe(modulos[i - 1]) !== avDe(mod)) && (
+          <h3 className="titulo-av"><b className="sigla-av">{avDe(mod).toUpperCase()}</b> {avDe(mod) === "n1" ? "Primeira avaliação" : "Segunda avaliação"} <small>{modulos.filter((x) => avDe(x) === avDe(mod)).length} módulo(s)</small></h3>
+        )}
+        <div className="tabela-rolagem">
           <table className="tabela-admin tabela-notas">
             <thead>
-              <tr><th>{mod}</th><th title="É conteúdo de prova?">Prova</th><th>Prioridade</th><th>Publicada</th><th>Cartas</th><th /></tr>
+              <tr>
+                <th>
+                  {mod}
+                  <select className="av-select" value={avDe(mod)} aria-label={"Avaliação do módulo " + mod} onChange={(e) => moverAvaliacao(e.target.value, notas.find((n) => n.modulo === mod)!.modulo_slug)}>
+                    <option value="n1">N1</option>
+                    <option value="n2">N2</option>
+                  </select>
+                </th>
+                <th title="É conteúdo de prova?">Prova</th><th>Prioridade</th><th>Publicada</th><th>Cartas</th><th />
+              </tr>
             </thead>
             <tbody>
               {notas.filter((n) => n.modulo === mod).map((n) => (
@@ -197,6 +241,7 @@ export function ConteudoMateria({ id }: { id: string }) {
               ))}
             </tbody>
           </table>
+        </div>
         </div>
       ))}
       <div className="zona-perigo">

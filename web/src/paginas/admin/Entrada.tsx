@@ -266,7 +266,7 @@ export function Gerar() {
   const [claude, setClaude] = useState<{ disponivel: boolean; versao: string | null; bin: string } | null>(null);
   const [lista, setLista] = useState<Geracao[]>([]);
   const [aberta, setAberta] = useState<Geracao | null>(null);
-  const [f, setF] = useState({ materia: "", nome: "", semestre: "", conteudosProva: "", instrucoes: "", rascunho: true });
+  const [f, setF] = useState({ materia: "", nome: "", semestre: "", avaliacao: "n1", conteudosProva: "", instrucoes: "", rascunho: true });
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [enviando, setEnviando] = useState(false);
   const fimLog = useRef<HTMLDivElement>(null);
@@ -312,6 +312,7 @@ export function Gerar() {
         form.append("nome", f.nome);
         form.append("semestre", f.semestre);
       }
+      form.append("avaliacao", f.avaliacao);
       form.append("conteudosProva", f.conteudosProva);
       form.append("instrucoes", f.instrucoes);
       form.append("rascunho", f.rascunho ? "1" : "0");
@@ -352,6 +353,13 @@ export function Gerar() {
               <label className="campo"><span>Semestre</span><input name="semestre" required type="number" min={1} max={14} value={f.semestre} onChange={(e) => setF({ ...f, semestre: e.target.value })} /></label>
             </div>
           )}
+          <label className="campo">
+            <span>Avaliação: de qual prova é este conteúdo</span>
+            <select name="avaliacao" value={f.avaliacao} onChange={(e) => setF({ ...f, avaliacao: e.target.value })}>
+              <option value="n1">N1 (primeira avaliação)</option>
+              <option value="n2">N2 (segunda avaliação)</option>
+            </select>
+          </label>
           <label className="campo">
             <span>Materiais (PDF, PPTX, DOCX, TXT): quantos quiser</span>
             <input ref={campo} type="file" multiple accept=".pdf,.pptx,.docx,.txt,.md" onChange={(e) => setArquivos([...(e.target.files || [])])} data-testid="arquivos-materiais" />
