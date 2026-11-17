@@ -1,5 +1,5 @@
 // Ouvir a nota. Com o ElevenLabs configurado no servidor, é um player de áudio de verdade: voz
-// feminina ou masculina, começa a tocar enquanto o áudio ainda está sendo gerado, e pausar,
+// masculina em português do Brasil, começa a tocar enquanto o áudio ainda está sendo gerado, e pausar,
 // continuar, parar, velocidade e a barra de tempo seguem o estado real do <audio>.
 // Sem o ElevenLabs, cai na voz do próprio navegador (só tocar e parar: o "pausar" dela falha em
 // vários navegadores e era o que deixava o botão preso em "Pausar").
@@ -9,9 +9,9 @@ import { Icone } from "./Icone";
 import { Ajuda } from "./Ajuda";
 
 type Estado = "parado" | "carregando" | "tocando" | "pausado" | "erro";
-type Info = { disponivel: boolean; vozes: { id: string; nome: string; detalhe: string }[] };
+type Info = { disponivel: boolean; voz?: { nome: string; detalhe: string; idioma: string } };
 let infoCache: Promise<Info> | null = null;
-const info = () => (infoCache ||= api.get<Info>("/api/voz").catch(() => ({ disponivel: false, vozes: [] })));
+const info = () => (infoCache ||= api.get<Info>("/api/voz").catch(() => ({ disponivel: false })));
 
 const lerPref = (k: string, padrao: string) => {
   try {
@@ -53,7 +53,6 @@ function falarNoNavegador(texto: string, aoTerminar: () => void) {
 export function PlayerVoz({ notaId, pegarTexto }: { notaId: string; pegarTexto: () => string }) {
   const [disp, setDisp] = useState<Info | null>(null);
   const [estado, setEstado] = useState<Estado>("parado");
-  const [voz, setVoz] = useState(() => lerPref("resumo-voz", "f"));
   const [velocidade, setVelocidade] = useState(() => Number(lerPref("resumo-velocidade", "1")) || 1);
   const [tempo, setTempo] = useState({ atual: 0, total: NaN });
   const [erro, setErro] = useState("");
@@ -78,7 +77,7 @@ export function PlayerVoz({ notaId, pegarTexto }: { notaId: string; pegarTexto: 
   useEffect(() => parar, [notaId, parar]); // trocou de nota ou saiu da página: para
 
   const tocar = useCallback(
-    (qualVoz = voz) => {
+    () => {
       setErro("");
       if (!disp?.disponivel) {
         if (!("speechSynthesis" in window)) return;
@@ -87,7 +86,7 @@ export function PlayerVoz({ notaId, pegarTexto }: { notaId: string; pegarTexto: 
         return;
       }
       parar();
-      const a = new Audio(`/api/voz/${notaId}?voz=${qualVoz}`);
+      const a = new Audio(`/api/voz/${notaId}`);
       a.preload = "auto";
       a.playbackRate = velocidade;
       a.addEventListener("waiting", () => setEstado((e) => (e === "pausado" ? e : "carregando")));
@@ -109,7 +108,7 @@ export function PlayerVoz({ notaId, pegarTexto }: { notaId: string; pegarTexto: 
       setEstado("carregando");
       a.play().catch(() => {});
     },
-    [disp, voz, velocidade, notaId, pegarTexto, parar]
+    [disp, velocidade, notaId, pegarTexto, parar]
   );
 
   const alternar = useCallback(() => {
@@ -128,11 +127,6 @@ export function PlayerVoz({ notaId, pegarTexto }: { notaId: string; pegarTexto: 
     return () => window.removeEventListener("resumo:voz-alternar", t);
   }, [alternar]);
 
-  const trocarVoz = (v: string) => {
-    setVoz(v);
-    gravarPref("resumo-voz", v);
-    if (estado !== "parado" && estado !== "erro") tocar(v);
-  };
   const trocarVelocidade = () => {
     const prox = VELOCIDADES[(VELOCIDADES.indexOf(velocidade) + 1) % VELOCIDADES.length];
     setVelocidade(prox);
@@ -155,15 +149,6 @@ export function PlayerVoz({ notaId, pegarTexto }: { notaId: string; pegarTexto: 
       <button type="button" className={"ferramenta" + (ativo ? " ativa" : "")} onClick={alternar} data-testid="ouvir" title="Ouvir a nota em voz alta (atalho O)">
         <Icone nome={estado === "tocando" && temEleven ? "pausa" : "som"} tam={16} /> {rotulo}
       </button>
-      {temEleven && (
-        <span className="voz-escolha" role="group" aria-label="Voz da leitura">
-          {disp.vozes.map((v) => (
-            <button type="button" key={v.id} className={"chip-voz" + (voz === v.id ? " ativo" : "")} onClick={() => trocarVoz(v.id)} aria-pressed={voz === v.id} title={`Voz ${v.nome.toLowerCase()} (${v.detalhe})`} data-voz={v.id}>
-              {v.nome}
-            </button>
-          ))}
-        </span>
-      )}
       {ativo && temEleven && (
         <>
           <button type="button" className="ferramenta so-texto" onClick={() => pular(-10)} title="Voltar 10 segundos" aria-label="Voltar 10 segundos">−10s</button>
@@ -178,7 +163,7 @@ export function PlayerVoz({ notaId, pegarTexto }: { notaId: string; pegarTexto: 
       {erro && <span className="voz-erro" role="alert">{erro}</span>}
       <Ajuda rotulo="Sobre a leitura em voz alta">
         {temEleven ? (
-          <>Uma voz lê a nota para você. Escolha <strong>Feminina</strong> ou <strong>Masculina</strong>; a leitura começa em poucos segundos e você pode pausar, voltar 10 segundos e mudar a velocidade. Questões e flashcards não são lidos.</>
+          <>Uma voz masculina, em português do Brasil, lê a nota para você. A leitura começa em poucos segundos e você pode pausar, voltar 10 segundos e mudar a velocidade. Questões e flashcards não são lidos.</>
         ) : (
           <>A voz do seu navegador lê a nota. Questões e flashcards não são lidos.</>
         )}
