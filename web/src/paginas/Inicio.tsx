@@ -1,7 +1,8 @@
 // Página inicial: o que fazer agora (revisões, prova mais próxima, continuar a leitura) e as matérias.
 import { useEffect, useState } from "react";
 import { api, type Baralho, type Estatisticas } from "../lib/api";
-import { dataCurta, diasAte, plural, textoProva, useApp } from "../lib/loja";
+import { nomeAv, provasDe } from "../lib/avaliacao";
+import { dataCurta, plural, textoProva, useApp } from "../lib/loja";
 import { Link } from "../lib/rota";
 import { Icone } from "../componentes/Icone";
 import { Barra, Carregando, Vazio } from "../componentes/ui";
@@ -26,9 +27,9 @@ export function Inicio() {
   const lidas = leitura.filter((n) => idx.lidas.has(n.id)).length;
   const paraHoje = cartas ? cartas.baralhos.reduce((s, b) => s + b.revisar + b.aprendendo + b.novos, 0) : null;
   const melhorBaralho = cartas?.baralhos.slice().sort((a, b) => b.revisar + b.aprendendo + b.novos - (a.revisar + a.aprendendo + a.novos))[0];
+  // as provas marcadas (N1 e N2 de cada matéria), da mais próxima para a mais distante
   const provas = bib.materias
-    .map((m) => ({ m, dias: diasAte(m.prova_data) }))
-    .filter((x): x is { m: (typeof bib.materias)[number]; dias: number } => x.dias !== null && x.dias >= 0)
+    .flatMap((m) => provasDe(m, idx).filter((p) => p.dias !== null && p.dias >= 0).map((p) => ({ m, av: p.av, data: p.data!, dias: p.dias! })))
     .sort((a, b) => a.dias - b.dias);
   const proxima = provas[0];
 
@@ -66,10 +67,10 @@ export function Inicio() {
         </Link>
 
         {proxima ? (
-          <Link para={"/prova/" + proxima.m.id} className={"cartao destaque-prova" + (proxima.dias <= 7 ? " urgente" : "")}>
+          <Link para={`/prova/${proxima.m.id}?av=${proxima.av}`} className={"cartao destaque-prova" + (proxima.dias <= 7 ? " urgente" : "")}>
             <span className="rotulo"><Icone nome="prova" tam={15} /> Próxima prova</span>
             <strong className="numerao">{proxima.dias === 0 ? "hoje" : proxima.dias === 1 ? "amanhã" : proxima.dias + " dias"}</strong>
-            <span className="sub">{proxima.m.nome} · {dataCurta(proxima.m.prova_data!)}</span>
+            <span className="sub">{proxima.m.nome} · {nomeAv(proxima.av)} · {dataCurta(proxima.data)}</span>
             <span className="sequencia">Abrir o modo prova <Icone nome="direita" tam={14} /></span>
           </Link>
         ) : (
@@ -119,7 +120,7 @@ export function Inicio() {
         </div>
         {provas.length > 1 && (
           <p className="sub provas-linha">
-            Provas: {provas.map((p) => `${p.m.nome} (${textoProva(p.dias)})`).join(" · ")}
+            Provas: {provas.map((p) => `${p.m.nome} ${nomeAv(p.av)} (${textoProva(p.dias)})`).join(" · ")}
           </p>
         )}
       </section>

@@ -1,6 +1,7 @@
 // Visão "Notas atômicas": o grafo de todas as notas e suas ligações, filtrado por semestre e
 // matéria. Clicar numa nota mostra o que ela é e a que se liga; dois cliques (ou "Abrir") leem.
 import { useEffect, useMemo, useState } from "react";
+import { AVS, nomeAv, type Av } from "../lib/avaliacao";
 import { PALETA, plural, semAcento, useApp } from "../lib/loja";
 import { Link, ir, useBusca } from "../lib/rota";
 import { Grafo, type NoGrafo } from "../componentes/Grafo";
@@ -15,6 +16,7 @@ export function Notas() {
   const [materia, setMateria] = useState<string | null>(inicial);
   const [soProva, setSoProva] = useState(false);
   const [naoLidas, setNaoLidas] = useState(false);
+  const [av, setAv] = useState<Av | null>(null);
   const [termo, setTermo] = useState("");
   const [sel, setSel] = useState<string | null>(null);
   const [modo, setModo] = useState<"grafo" | "lista">("grafo");
@@ -27,8 +29,8 @@ export function Notas() {
   const visiveis = useMemo(() => {
     if (!bib) return [];
     const ids = new Set(materias.map((m) => m.id));
-    return bib.notas.filter((n) => (ativa ? n.materia === ativa : ids.has(n.materia)) && (!soProva || n.prova || n.mapa) && (!naoLidas || !idx.lidas.has(n.id)));
-  }, [bib, materias, ativa, soProva, naoLidas, idx]);
+    return bib.notas.filter((n) => (ativa ? n.materia === ativa : ids.has(n.materia)) && (!soProva || n.prova || n.mapa) && (!naoLidas || !idx.lidas.has(n.id)) && (!av || idx.modulo.get(n.modulo)?.avaliacao === av));
+  }, [bib, materias, ativa, soProva, naoLidas, av, idx]);
 
   // com uma matéria só, a cor distingue os módulos; com várias, as matérias
   const { nos, legenda } = useMemo(() => {
@@ -88,6 +90,9 @@ export function Notas() {
           ))}
         </div>
         <div className="chips">
+          {AVS.map((a) => (
+            <button type="button" key={a} className={"chip" + (av === a ? " ativo" : "")} onClick={() => setAv(av === a ? null : a)} aria-pressed={av === a} data-av={a}>{nomeAv(a)}</button>
+          ))}
           <button type="button" className={"chip" + (soProva ? " ativo" : "")} onClick={() => setSoProva((v) => !v)} aria-pressed={soProva}><Icone nome="prova" tam={14} /> Só prova</button>
           <button type="button" className={"chip" + (naoLidas ? " ativo" : "")} onClick={() => setNaoLidas((v) => !v)} aria-pressed={naoLidas}>Não lidas</button>
           <label className="campo-busca">
