@@ -1,4 +1,4 @@
-# Sinapse
+# resumo.com
 
 Plataforma de **assinatura** de resumos de estudo feitos com IA, em **notas atômicas** ligadas entre si,
 com **modo prova** e **flashcards** de repetição espaçada. O administrador libera os acessos (com
@@ -9,8 +9,9 @@ Feita para medicina (o visual, o vocabulário e o modo prova partem daí), mas s
 
 ## O que o assinante encontra
 
-- **Notas atômicas.** Cada nota ensina uma ideia e liga para as outras. Dá para ver a matéria inteira
-  como um grafo (filtrando por semestre, matéria, só prova, não lidas) e clicar de nota em nota.
+- **Notas atômicas.** Cada nota ensina uma ideia e liga para as outras. Em cada nota, o painel de
+  conexões e o mapa do módulo mostram as ligações; **Explorar ligações** mostra um tópico por vez,
+  com só as notas ligadas a ele, e deixa seguir o fio clicando de nota em nota.
 - **Prateleira.** A mesma biblioteca em ordem de estudo: semestre → matéria → avaliação (N1 e N2) →
   módulos em fileiras → notas, com o progresso de leitura.
 - **N1 e N2.** Toda matéria é dividida em duas avaliações: cada módulo pertence a uma delas, e cada
@@ -23,11 +24,17 @@ Feita para medicina (o visual, o vocabulário e o modo prova partem daí), mas s
   - **"já sei"** em cada item do bloco essencial, guardado no aparelho;
   - **espiar:** clicar num link abre a outra nota ao lado, sem sair da leitura;
   - questões com correção na hora e placar; cartas da nota que viram; figuras que ampliam;
-  - mapa do módulo como grafo; ouvir a nota em voz alta; modo foco; tamanho da letra; atalhos de teclado.
+  - mapa do módulo como grafo; modo foco; tamanho da letra; atalhos de teclado;
+  - **ouvir a nota** com uma voz do ElevenLabs, feminina ou masculina, em streaming (pausar, voltar
+    10 s, velocidade). Cada nota é gerada uma vez por voz e guardada.
+- **Pendências.** Um flashcard que pegou você, ou uma nota que quer rever: "Estudar depois" guarda o
+  assunto na aba Pendências; "Dei baixa" tira da lista (e marca a nota como lida).
 - **Modo prova.** Só o conteúdo emergencial de cada matéria: o bloco essencial de cada nota de prova
   (por prioridade), as dicas de prova, as questões e as cartas da prova, com a contagem de dias.
 - **Flashcards.** Um baralho por matéria, agendado com o **algoritmo do Anki** (SM-2, agendador v2,
   valores padrão): passos de 1 e 10 min, De novo / Difícil / Bom / Fácil, facilidade, lapsos,
+  um **?** ao lado de cada pergunta que explica o que ela quer saber, e o assunto do flashcard
+  clicável (abre a nota, com confirmação antes de sair do estudo),
   virada do dia às 4h. O assinante escolhe quantas cartas novas quer por dia (20 por padrão) e pode
   liberar mais na hora em que o baralho acaba.
 - **Leitor de PDF embutido** para resumos que já existem em PDF.
@@ -50,6 +57,8 @@ Feita para medicina (o visual, o vocabulário e o modo prova partem daí), mas s
 ## Rodar
 
 Precisa de **Node 22.13 ou mais novo**. Não há dependência nativa (o banco é o SQLite embutido do Node).
+Chaves e ajustes locais vão num arquivo `.env` na raiz (fora do git; veja `.env.example`). Para a
+leitura em voz alta, ponha lá `ELEVENLABS_API_KEY`.
 
     npm install
     npm run build      # compila o front (web/dist)
@@ -72,14 +81,14 @@ Para abrir em outro aparelho da mesma rede, use o IP do computador no lugar de `
 
 ## Como o conteúdo entra
 
-Todo conteúdo é um **pacote Sinapse**: uma pasta de arquivos Markdown, no mesmo jeito de escrever do
+Todo conteúdo é um **pacote resumo.com**: uma pasta de arquivos Markdown, no mesmo jeito de escrever do
 Obsidian (propriedades YAML, blocos `> [!tipo]`, links `[[Nota]]`). A especificação completa, com o
 padrão de qualidade dos resumos, está em [`FORMATO.md`](FORMATO.md). É o formato universal: qualquer
 pessoa ou qualquer instância de IA que o siga consegue publicar.
 
     node server/cli.js validar  <pasta>     # confere e lista erros e avisos
     node server/cli.js importar <pasta>     # valida e publica (acrescenta e atualiza; não apaga)
-    node server/cli.js importar <pasta> --url https://seu-site --token snp_...   # publica num site hospedado
+    node server/cli.js importar <pasta> --url https://seu-site --token rsm_...   # publica num site hospedado
     node server/cli.js exportar <materia> <destino.zip>
     node server/cli.js listar
 
@@ -114,8 +123,8 @@ todo vazamento carregue o nome de quem vazou.
 
 ## Testes
 
-    npm test            # servidor: agendador do Anki, formato de pacote, API, gerador (48 testes)
-    npm run test:e2e    # navegador: leitura, grafo, prova, flashcards, proteção, painel, celular (38 cenários)
+    npm test            # servidor: agendador do Anki, formato de pacote, API, gerador, voz (52 testes)
+    npm run test:e2e    # navegador: leitura, grafo, prova, flashcards, proteção, painel, pendências, celular (41 cenários)
 
 Os testes de navegador usam o Chrome instalado e um servidor próprio com banco temporário. A geração
 com IA é testada com um Claude de mentira (`server/test/claude-de-mentira.mjs`), que segue o mesmo
@@ -132,6 +141,7 @@ protocolo do de verdade.
       src/conteudo.js    biblioteca, nota, modo prova, busca, figuras, PDF
       src/flashcards.js  fila de estudo
       src/admin.js       painel
+      src/voz.js         leitura da nota com o ElevenLabs (streaming e cache)
       src/auth.js        contas, sessões, tokens de API
     web/      front-end (React + Vite + TypeScript)
     e2e/      testes de navegador (Playwright)
