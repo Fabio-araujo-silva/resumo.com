@@ -39,6 +39,10 @@ const D: Record<string, string> = {
   filtro: "M4 5.500h16l-6 7.500v5.500l-4 1.500V13z",
   voltar: "M4.500 9.500h9.500a5 5 0 0 1 0 10H9M8.500 5.500l-4 4 4 4",
   foco: "M4 9V4.500h4.500M20 9V4.500h-4.500M4 15v4.500h4.500M20 15v4.500h-4.500",
+  marcador: "M6.500 3.500h11v17l-5.500-4-5.500 4z",
+  som: "M4 9.500h3.500L12 5.500v13l-4.500-4H4zM15.500 9a4.500 4.500 0 0 1 0 6M18 6.500a8 8 0 0 1 0 11",
+  pausa: "M8 5.500v13M16 5.500v13",
+  marcado: "M6.500 3.500h11v17l-5.500-4-5.500 4zM9.500 9.500l2 2 3.500-3.500",
 };
 
 export function Icone({ nome, tam = 18, className }: { nome: keyof typeof D | string; tam?: number; className?: string }) {

@@ -7,7 +7,8 @@ export type NotaMeta = {
   id: string; materia: string; modulo: string; titulo: string; resumo: string; prova: boolean; prioridade: number;
   tags: string[]; minutos: number; pdf: boolean; mapa: boolean; rascunho: boolean; cards: number;
 };
-export type Biblioteca = { materias: Materia[]; modulos: Modulo[]; notas: NotaMeta[]; links: [string, string][]; lidas: string[]; versao: number };
+export type Pendencia = { nota: string; em: number };
+export type Biblioteca = { materias: Materia[]; modulos: Modulo[]; notas: NotaMeta[]; links: [string, string][]; lidas: string[]; pendencias: Pendencia[]; versao: number };
 export type Ligada = { id: string; titulo: string; resumo: string; materia: string };
 export type NotaCompleta = {
   nota: {
@@ -20,7 +21,7 @@ export type NotaCompleta = {
 };
 export type Contagem = { novos: number; aprendendo: number; revisar: number; total: number; novasRestantes: number; limite: number };
 export type Rodada = {
-  carta: { id: string; frente: string; verso: string; nota: { id: string; titulo: string }; estado: string } | null;
+  carta: { id: string; frente: string; verso: string; explica: string; nota: { id: string; titulo: string; resumo: string; modulo: string }; estado: string; pendente: boolean } | null;
   previsoes?: Record<string, string>; contagem: Contagem; proximaEm: number | null;
   agendada?: { estado: string; intervalo: number; vence: number };
 };
@@ -52,7 +53,7 @@ export const definirAoCairSessao = (f: () => void) => {
 };
 
 async function pedir<T>(metodo: string, url: string, corpo?: unknown): Promise<T> {
-  const cab: Record<string, string> = { "x-sinapse": "1" };
+  const cab: Record<string, string> = { "x-resumo": "1" };
   let body: BodyInit | undefined;
   if (corpo instanceof FormData) body = corpo;
   else if (corpo !== undefined) {

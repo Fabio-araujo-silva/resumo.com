@@ -1,6 +1,6 @@
 // Estado global do app: quem está logado, a biblioteca (matérias, notas e ligações), tema e avisos.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { api, definirAoCairSessao, mensagem, type Biblioteca, type Materia, type Modulo, type NotaMeta, type Usuario } from "./api";
+import { api, definirAoCairSessao, mensagem, type Biblioteca, type Materia, type Modulo, type NotaMeta, type Pendencia, type Usuario } from "./api";
 
 export const PALETA = ["#2fc4b2", "#5aa7e8", "#f0b85a", "#f47c72", "#b79cf2", "#4fcf8e", "#e88fc0", "#7fd0e6", "#d6a86a", "#9fb4ff", "#c3d96a", "#ff9d6e"];
 
@@ -30,6 +30,10 @@ type App = {
   idx: Indice;
   recarregar: () => Promise<void>;
   marcarLida: (id: string, lida: boolean) => void;
+  pendencias: Pendencia[];
+  ehPendente: (id: string) => boolean;
+  adicionarPendencia: (id: string) => void;
+  removerPendencia: (id: string, baixa?: boolean) => void;
   tema: "dark" | "light";
   alternarTema: () => void;
   avisos: Aviso[];
@@ -74,7 +78,7 @@ function montarIndice(bib: Biblioteca | null): Indice {
 
 export function Provedor({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null | undefined>(undefined);
-  const [config, setConfig] = useState<Config>({ nome: "Sinapse", protecao: { desfocar: true } });
+  const [config, setConfig] = useState<Config>({ nome: "resumo.com", protecao: { desfocar: true } });
   const [bib, setBib] = useState<Biblioteca | null>(null);
   const [motivoSaida, setMotivoSaida] = useState("");
   const [tema, setTema] = useState<"dark" | "light">(() => (document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"));
@@ -141,20 +145,38 @@ export function Provedor({ children }: { children: ReactNode }) {
     [avisar]
   );
 
+  // pendências: muda na tela na hora e grava no servidor
+  const adicionarPendencia = useCallback(
+    (id: string) => {
+      setBib((b) => (b && !b.pendencias.some((p) => p.nota === id) ? { ...b, pendencias: [{ nota: id, em: Date.now() }, ...b.pendencias] } : b));
+      api.post("/api/pendencias", { nota: id }).then(() => avisar("Adicionada às pendências. Veja na aba Pendências.", "ok")).catch((e) => avisar(mensagem(e), "erro"));
+    },
+    [avisar]
+  );
+  const removerPendencia = useCallback(
+    (id: string, baixa = false) => {
+      setBib((b) => (b ? { ...b, pendencias: b.pendencias.filter((p) => p.nota !== id) } : b));
+      api.del("/api/pendencias/" + id).then(() => avisar(baixa ? "Baixa dada: saiu das pendências." : "Removida das pendências.", "ok")).catch((e) => avisar(mensagem(e), "erro"));
+    },
+    [avisar]
+  );
+
   const alternarTema = useCallback(() => {
     setTema((t) => {
       const novo = t === "dark" ? "light" : "dark";
       document.documentElement.setAttribute("data-theme", novo);
       document.querySelector('meta[name="theme-color"]')?.setAttribute("content", novo === "dark" ? "#0a1116" : "#f3f6f8");
       try {
-        localStorage.setItem("sinapse-tema", novo);
+        localStorage.setItem("resumo-tema", novo);
       } catch {}
       return novo;
     });
   }, []);
 
   const idx = useMemo(() => montarIndice(bib), [bib]);
-  const valor: App = { usuario, config, motivoSaida, entrar, sair, definirUsuario: setUsuario, bib, idx, recarregar, marcarLida, tema, alternarTema, avisos, avisar };
+  const pendencias = useMemo(() => bib?.pendencias || [], [bib]);
+  const ehPendente = useCallback((id: string) => pendencias.some((p) => p.nota === id), [pendencias]);
+  const valor: App = { usuario, config, motivoSaida, entrar, sair, definirUsuario: setUsuario, bib, idx, recarregar, marcarLida, pendencias, ehPendente, adicionarPendencia, removerPendencia, tema, alternarTema, avisos, avisar };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }
 
