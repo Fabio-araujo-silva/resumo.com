@@ -1,0 +1,53 @@
+/* Avaliações (N1 e N2) e o controle do limite diário de flashcards. */
+
+.sigla-av, .capa-av {
+  display: inline-grid; place-items: center; padding: 1px 7px; border-radius: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.06em;
+  background: var(--acento-suave); color: var(--acento-forte);
+}
+.capa-av { margin-left: auto; background: rgba(255, 255, 255, 0.2); color: #fff; }
+.capa .olho { width: 100%; }
+
+/* matéria: um bloco por avaliação */
+.avaliacao { gap: 18px; }
+.avaliacao + .avaliacao { margin-top: 10px; padding-top: 26px; border-top: 1px solid var(--linha); }
+.avaliacao-cabeca { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.avaliacao-cabeca > div:first-of-type { flex: 1; min-width: 200px; }
+.avaliacao-cabeca h2 { font-size: 19px; letter-spacing: -0.015em; }
+.avaliacao-cabeca p { font-size: 13.5px; color: var(--suave); }
+.avaliacao-sigla { flex: none; width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: #fff; background: linear-gradient(150deg, #17324d, #1f6f8b 70%, #37a1b9); box-shadow: var(--sombra-p); }
+.avaliacao-n2 .avaliacao-sigla { background: linear-gradient(150deg, #3b1d5e, #6a4cc0 70%, #a48bf0); }
+.avaliacao-n2 .modulo-num { background: linear-gradient(150deg, #3b1d5e, #6a4cc0 70%, #a48bf0); }
+
+/* modo prova: alternar entre N1 e N2 */
+.alternador-av { align-self: flex-start; background: rgba(0, 0, 0, 0.25); border-color: rgba(255, 255, 255, 0.2); }
+.alternador-av button { color: rgba(255, 255, 255, 0.8); font-size: 14px; padding: 6px 16px; }
+.alternador-av button small { font-weight: 600; opacity: 0.75; }
+.alternador-av button.ativo { background: #fff; color: #3a2408; }
+.cartao-prova .rotulo .sigla-av { background: var(--ambar-suave); color: var(--ambar); font-size: 11px; }
+
+/* flashcards: limite diário */
+.limite-diario { flex-direction: row; align-items: center; gap: 18px; flex-wrap: wrap; }
+.limite-texto { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 4px; }
+.limite-texto strong { color: var(--ambar); font-weight: 600; }
+.limite-controle { display: flex; align-items: center; gap: 6px; padding: 4px; border-radius: 12px; border: 1px solid var(--linha-forte); background: var(--fundo-2); }
+.limite-controle strong { min-width: 58px; text-align: center; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.limite-controle .botao-icone { font-size: 20px; font-weight: 600; background: var(--superficie-2); }
+.limite-controle .botao-icone:disabled { opacity: 0.35; cursor: not-allowed; }
+.liberar-novas { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 22px; border-radius: var(--raio-g); border: 1px solid color-mix(in srgb, var(--azul) 45%, transparent); background: var(--azul-suave); max-width: 520px; }
+.liberar-novas p { color: var(--texto); }
+.liberar-novas small { color: var(--fraco); font-size: 12.5px; }
+
+/* painel */
+.bloco-av { padding: 12px 14px 14px; border: 1px solid var(--linha); border-radius: var(--raio); gap: 10px; }
+.bloco-av legend { padding: 0 6px; gap: 7px; color: var(--texto); font-size: 13px; }
+.bloco-modulo { display: flex; flex-direction: column; gap: 10px; }
+.titulo-av { display: flex; align-items: center; gap: 9px; font-size: 15px; margin-top: 8px; }
+.titulo-av small { color: var(--fraco); font-weight: 500; font-size: 12.5px; }
+.av-select { margin-left: 10px; width: auto !important; padding: 3px 8px !important; font-size: 12px; font-weight: 700; }
+.tudo-av { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--suave); }
+
+@media (max-width: 900px) {
+  .avaliacao-sigla { width: 44px; height: 44px; font-size: 16px; }
+  .limite-diario { align-items: stretch; }
+  .limite-controle { align-self: flex-start; }
+}

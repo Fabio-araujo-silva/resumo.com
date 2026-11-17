@@ -5,6 +5,7 @@ import "./estilos/base.css";
 import "./estilos/paginas.css";
 import "./estilos/leitor.css";
 import "./estilos/interativo.css";
+import "./estilos/avaliacao.css";
 import "./estilos/admin.css";
 import { Provedor } from "./lib/loja";
 import { App } from "./App";
