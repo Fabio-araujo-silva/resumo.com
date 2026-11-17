@@ -1,7 +1,8 @@
 // Flashcards: a lista de baralhos (um por matéria) e a sessão de estudo, com os quatro botões do
 // Anki. O servidor escolhe a carta e calcula os intervalos; aqui é só a mesa de estudo.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, mensagem, type Baralho, type Estatisticas, type Rodada } from "../lib/api";
+import { api, mensagem, type Baralho, type Estatisticas, type LimiteCartas, type Rodada } from "../lib/api";
+import { nomeAv } from "../lib/avaliacao";
 import { plural, useApp } from "../lib/loja";
 import { Link, useBusca } from "../lib/rota";
 import { ConteudoNota } from "../componentes/ConteudoNota";
@@ -12,14 +13,30 @@ const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
 export function Baralhos() {
   const { idx } = useApp();
-  const [dados, setDados] = useState<{ baralhos: Baralho[]; estatisticas: Estatisticas } | null>(null);
+  const { avisar } = useApp();
+  const [dados, setDados] = useState<{ baralhos: Baralho[]; estatisticas: Estatisticas; limite: LimiteCartas } | null>(null);
   const [erro, setErro] = useState("");
-  useEffect(() => {
-    api.get<{ baralhos: Baralho[]; estatisticas: Estatisticas }>("/api/flashcards/baralhos").then(setDados).catch((e) => setErro(mensagem(e)));
+  const carregar = useCallback(() => {
+    api.get<{ baralhos: Baralho[]; estatisticas: Estatisticas; limite: LimiteCartas }>("/api/flashcards/baralhos").then(setDados).catch((e) => setErro(mensagem(e)));
   }, []);
+  useEffect(carregar, [carregar]);
+  const mudarLimite = async (n: number) => {
+    if (!dados) return;
+    const novo = Math.min(dados.limite.maximo, Math.max(dados.limite.minimo, n));
+    if (novo === dados.limite.novosPorDia) return;
+    try {
+      await api.post("/api/flashcards/limite", { novosPorDia: novo });
+      avisar(`Agora entram até ${novo} cartas novas por dia em cada baralho.`, "ok");
+      carregar();
+      window.dispatchEvent(new Event("sinapse:estudou"));
+    } catch (e) {
+      avisar(mensagem(e), "erro");
+    }
+  };
   if (erro) return <div className="pagina"><Vazio icone="alerta" titulo="Não foi possível carregar">{erro}</Vazio></div>;
   if (!dados) return <div className="pagina"><Carregando /></div>;
-  const { baralhos, estatisticas: e } = dados;
+  const { baralhos, estatisticas: e, limite } = dados;
+  const aguardando = baralhos.reduce((s, b) => s + b.novasRestantes, 0);
   const semestres = [...new Set(baralhos.map((b) => b.semestre))].sort((a, b) => a - b);
   const maior = Math.max(1, ...e.semana.map((d) => d.n));
   return (
@@ -61,6 +78,28 @@ export function Baralhos() {
         </div>
       </section>
 
+      {baralhos.length > 0 && (
+        <section className="cartao limite-diario" data-testid="limite-diario">
+          <div className="limite-texto">
+            <h2 className="titulo-secao"><Icone nome="raio" tam={17} /> Cartas novas por dia</h2>
+            <p className="sub">
+              Quantas cartas inéditas entram por dia em cada baralho (as revisões não têm esse teto).
+              {aguardando > 0 ? <strong> Há {plural(aguardando, "carta nova esperando", "cartas novas esperando")}: aumente para adiantá-las hoje.</strong> : " O padrão do Anki é " + limite.padrao + "."}
+            </p>
+          </div>
+          <div className="limite-controle" role="group" aria-label="Cartas novas por dia">
+            <button type="button" className="botao-icone" onClick={() => mudarLimite(limite.novosPorDia - 10)} disabled={limite.novosPorDia <= limite.minimo} aria-label="Diminuir 10">−</button>
+            <strong data-testid="limite-valor">{limite.novosPorDia}</strong>
+            <button type="button" className="botao-icone" onClick={() => mudarLimite(limite.novosPorDia + 10)} disabled={limite.novosPorDia >= limite.maximo} aria-label="Aumentar 10">+</button>
+          </div>
+          <div className="chips" role="group" aria-label="Valores prontos">
+            {[10, 20, 40, 60, 100].map((n) => (
+              <button type="button" key={n} className={"chip" + (limite.novosPorDia === n ? " ativo" : "")} onClick={() => mudarLimite(n)}>{n}</button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {!baralhos.length && <Vazio icone="cartas" titulo="Nenhum baralho ainda">Os flashcards aparecem junto com os resumos de cada matéria.</Vazio>}
       {semestres.map((s) => (
         <section key={s} className="grupo-baralhos">
@@ -81,13 +120,16 @@ export function Baralhos() {
                     <i className="ponto" style={{ background: idx.cor(b.materia) }} />
                     <span>
                       <strong>{b.nome}</strong>
-                      <small>{plural(b.total, "carta", "cartas")} · {b.estudadas} vistas · {b.maduras} maduras</small>
+                      <small>{plural(b.total, "carta", "cartas")} · {b.estudadas} vistas · {b.maduras} maduras{b.novasRestantes > 0 ? ` · ${b.novasRestantes} novas esperando` : ""}</small>
                     </span>
                   </span>
                   <span role="cell" className={"num novas" + (b.novos ? "" : " zero")}>{b.novos}</span>
                   <span role="cell" className={"num aprendendo" + (b.aprendendo ? "" : " zero")}>{b.aprendendo}</span>
                   <span role="cell" className={"num revisar" + (b.revisar ? "" : " zero")}>{b.revisar}</span>
                   <span role="cell" className="baralho-acoes">
+                    {b.avaliacoes.map((a) => (
+                      <Link key={a.av} para={`/flashcards/${b.materia}?av=${a.av}`} className="botao pequeno fantasma" title={`Só as ${a.cartas} cartas da ${nomeAv(a.av)}`} data-av={a.av}>{nomeAv(a.av)}</Link>
+                    ))}
                     {b.deProva > 0 && <Link para={`/flashcards/${b.materia}?modo=prova`} className="botao pequeno fantasma" title="Só as cartas das notas de prova"><Icone nome="prova" tam={14} /> Prova</Link>}
                     <Link para={"/flashcards/" + b.materia} className={"botao pequeno " + (pendente ? "primario" : "fantasma")}>{pendente ? "Estudar" : "Em dia"}</Link>
                   </span>
@@ -111,9 +153,10 @@ const BOTOES = [
 export function Estudo({ materia }: { materia: string }) {
   const { idx } = useApp();
   const busca = useBusca();
-  const { nota, modo } = useMemo(() => {
+  const { nota, modo, av } = useMemo(() => {
     const p = new URLSearchParams(busca);
-    return { nota: p.get("nota"), modo: p.get("modo") === "prova" ? "prova" : "" };
+    const a = (p.get("av") || "").toLowerCase();
+    return { nota: p.get("nota"), modo: p.get("modo") === "prova" ? "prova" : "", av: a === "n1" || a === "n2" ? a : "" };
   }, [busca]);
   const [rodada, setRodada] = useState<Rodada | null>(null);
   const [virada, setVirada] = useState(false);
@@ -122,7 +165,7 @@ export function Estudo({ materia }: { materia: string }) {
   const [feitas, setFeitas] = useState(0);
   const [agora, setAgora] = useState(Date.now());
 
-  const filtro = useMemo(() => ({ materia, ...(nota ? { nota } : {}), ...(modo ? { modo } : {}) }), [materia, nota, modo]);
+  const filtro = useMemo(() => ({ materia, ...(nota ? { nota } : {}), ...(modo ? { modo } : {}), ...(av ? { av } : {}) }), [materia, nota, modo, av]);
   const carregar = useCallback(() => {
     setErro("");
     api
@@ -185,8 +228,18 @@ export function Estudo({ materia }: { materia: string }) {
   }, [rodada, carregar]);
 
   const nomeMateria = idx.materia.get(materia)?.nome || "";
-  const titulo = nota ? idx.nota.get(nota)?.titulo || "Nota" : modo ? "Cartas da prova" : "Baralho completo";
-  const voltar = nota ? "/nota/" + nota : modo ? "/prova/" + materia : "/flashcards";
+  const titulo = nota ? idx.nota.get(nota)?.titulo || "Nota" : modo ? "Cartas da prova" + (av ? " " + nomeAv(av) : "") : av ? "Cartas da " + nomeAv(av) : "Baralho completo";
+  const voltar = nota ? "/nota/" + nota : modo ? "/prova/" + materia + (av ? "?av=" + av : "") : "/flashcards";
+  // limite diário atingido com cartas novas sobrando: dá para liberar mais sem sair daqui
+  const liberar = async (quantas: number) => {
+    if (!rodada) return;
+    try {
+      await api.post("/api/flashcards/limite", { novosPorDia: rodada.contagem.limite + quantas });
+      carregar();
+    } catch (e) {
+      setErro(mensagem(e));
+    }
+  };
 
   if (erro && !rodada) return <div className="pagina"><Vazio icone="alerta" titulo="Não foi possível abrir o baralho">{erro}</Vazio></div>;
   if (!rodada) return <div className="pagina"><Carregando /></div>;
@@ -247,8 +300,18 @@ export function Estudo({ materia }: { materia: string }) {
           ) : c.total > 0 ? (
             <p>{feitas ? `Você respondeu ${plural(feitas, "carta", "cartas")} nesta sessão. ` : ""}Não há mais cartas para hoje neste baralho. O intervalo de cada uma já foi agendado.</p>
           ) : null}
+          {!nota && !modo && c.novasRestantes > 0 && (
+            <div className="liberar-novas" data-testid="liberar-novas">
+              <p>Ainda há <strong>{plural(c.novasRestantes, "carta nova", "cartas novas")}</strong> neste baralho. Seu limite é de {c.limite} por dia.</p>
+              <div className="linha-botoes">
+                <button type="button" className="botao primario" onClick={() => liberar(10)}><Icone nome="raio" tam={16} /> Estudar mais 10 hoje</button>
+                {c.novasRestantes > 10 && <button type="button" className="botao fantasma" onClick={() => liberar(c.novasRestantes)}>Liberar todas ({c.novasRestantes})</button>}
+              </div>
+              <small>Isso aumenta o seu limite diário. Dá para voltar ao normal na tela de baralhos.</small>
+            </div>
+          )}
           <div className="linha-botoes">
-            <Link para={voltar} className="botao primario">{nota ? "Voltar à nota" : modo ? "Voltar ao modo prova" : "Ver baralhos"}</Link>
+            <Link para={voltar} className={"botao " + (!nota && !modo && c.novasRestantes > 0 ? "fantasma" : "primario")}>{nota ? "Voltar à nota" : modo ? "Voltar ao modo prova" : "Ver baralhos"}</Link>
             {!nota && <Link para={"/materia/" + materia} className="botao fantasma">Ler a matéria</Link>}
           </div>
         </div>
