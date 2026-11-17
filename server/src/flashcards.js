@@ -3,7 +3,7 @@
 import { HttpError } from "./util.js";
 import { exigirUsuario, materiasLiberadas } from "./auth.js";
 import { PADRAO, agendar, previsoes, novoEstado, diaDe, inicioDoDia } from "./srs.js";
-import { renderTrecho } from "./markdown.js";
+import { renderTrecho, renderLinha } from "./markdown.js";
 import { criarResolver } from "./importar.js";
 
 export function registrarFlashcards(app, { db, config, agora = () => Date.now() }) {
@@ -55,7 +55,7 @@ export function registrarFlashcards(app, { db, config, agora = () => Date.now() 
   function proxima(user, f, t) {
     const b = base(user, f);
     const c = contar(user, f, t);
-    const campos = "f.id, f.frente, f.verso, f.nota_id, n.titulo nota_titulo, e.estado, e.passo, e.vence, e.intervalo, e.facilidade, e.reps, e.lapsos";
+    const campos = "f.id, f.frente, f.verso, f.explica, f.nota_id, n.titulo nota_titulo, n.resumo nota_resumo, mo.titulo modulo_titulo, e.estado, e.passo, e.vence, e.intervalo, e.facilidade, e.reps, e.lapsos";
     const pegar = (extra, ordem, ...a) => db.prepare(`select ${campos} ${b.sql} and ${extra} order by ${ordem} limit 1`).get(...b.args, ...a);
     let carta = pegar("e.estado in ('aprendendo', 'reaprendendo') and e.vence <= ?", "e.vence", t);
     if (!carta && c.revisar > 0) carta = pegar("e.estado = 'revisao' and e.vence <= ?", "e.vence, f.id", c.fimHoje);
@@ -74,7 +74,10 @@ export function registrarFlashcards(app, { db, config, agora = () => Date.now() 
         id: carta.id,
         frente: renderTrecho(carta.frente, ctx),
         verso: renderTrecho(carta.verso, ctx),
-        nota: { id: carta.nota_id, titulo: carta.nota_titulo },
+        // o "?" da pergunta: a explicação escrita para a carta e, sempre, de que assunto ela é
+        explica: carta.explica ? renderLinha(carta.explica, ctx) : "",
+        nota: { id: carta.nota_id, titulo: carta.nota_titulo, resumo: carta.nota_resumo, modulo: carta.modulo_titulo },
+        pendente: !!db.prepare("select 1 from pendencias where user_id = ? and nota_id = ?").get(user.id, carta.nota_id),
         estado: estado.estado,
       },
       previsoes: previsoes(estado, t, cfg),
