@@ -25,8 +25,10 @@ Feita para medicina (o visual, o vocabulário e o modo prova partem daí), mas s
   - **espiar:** clicar num link abre a outra nota ao lado, sem sair da leitura;
   - questões com correção na hora e placar; cartas da nota que viram; figuras que ampliam;
   - mapa do módulo como grafo; modo foco; tamanho da letra; atalhos de teclado;
-  - **ouvir a nota** com uma voz do ElevenLabs, feminina ou masculina, em streaming (pausar, voltar
-    10 s, velocidade). Cada nota é gerada uma vez por voz e guardada.
+  - **ouvir a nota** com uma voz masculina do ElevenLabs, expressiva e em português do Brasil, em streaming (pausar, voltar
+    10 s, velocidade). Cada nota é gerada uma vez e guardada.
+- **Ofensiva.** Dias seguidos estudando (um flashcard respondido ou uma nota lida vale o dia), com
+  recorde, calendário e aviso quando o dia está em risco.
 - **Pendências.** Um flashcard que pegou você, ou uma nota que quer rever: "Estudar depois" guarda o
   assunto na aba Pendências; "Dei baixa" tira da lista (e marca a nota como lida).
 - **Modo prova.** Só o conteúdo emergencial de cada matéria: o bloco essencial de cada nota de prova
