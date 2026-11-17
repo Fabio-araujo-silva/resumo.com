@@ -8,11 +8,13 @@ import { Icone } from "../componentes/Icone";
 import { Barra, Carregando, Vazio } from "../componentes/ui";
 import { CapaMateria } from "./Estante";
 import { Ajuda } from "../componentes/Ajuda";
+import { PainelOfensiva, estadoOfensiva } from "../componentes/Ofensiva";
 
 type Recente = { id: string; titulo: string; materia: string; em: number };
 
 export function Inicio() {
-  const { usuario, bib, idx } = useApp();
+  const { usuario, bib, idx, ofensiva } = useApp();
+  const [painel, setPainel] = useState(false);
   const [recentes, setRecentes] = useState<Recente[]>([]);
   const [cartas, setCartas] = useState<{ baralhos: Baralho[]; estatisticas: Estatisticas } | null>(null);
 
@@ -57,6 +59,21 @@ export function Inicio() {
         </div>
       </header>
 
+      {ofensiva && (
+        <button type="button" className={"faixa-ofensiva " + estadoOfensiva(ofensiva).classe} onClick={() => setPainel(true)} data-testid="faixa-ofensiva">
+          <span className="faixa-chama"><Icone nome="fogo" tam={30} /></span>
+          <span className="faixa-texto">
+            <strong>{ofensiva.atual === 0 ? "Sem ofensiva ainda" : `${ofensiva.atual} ${ofensiva.atual === 1 ? "dia" : "dias"} de ofensiva`}</strong>
+            <small>{estadoOfensiva(ofensiva).frase}</small>
+          </span>
+          <span className="faixa-semana" aria-hidden="true">
+            {ofensiva.dias.slice(-7).map((d) => <i key={d.dia} className={(d.ativo ? "ativo" : "") + (d.hoje ? " hoje" : "")} />)}
+          </span>
+          <span className="faixa-recorde">recorde <b>{ofensiva.recorde}</b></span>
+        </button>
+      )}
+      {painel && <PainelOfensiva aoFechar={() => setPainel(false)} />}
+
       <section className="painel-hoje">
         <Link para={melhorBaralho ? "/flashcards/" + melhorBaralho.materia : "/flashcards"} className="cartao destaque-cartas">
           <span className="rotulo"><Icone nome="cartas" tam={15} /> Flashcards de hoje <Ajuda>Revisões que vencem hoje mais os flashcards novos do seu limite diário, somando todas as matérias.</Ajuda></span>
@@ -64,7 +81,7 @@ export function Inicio() {
           <span className="sub">
             {cartas ? (paraHoje ? `${plural(cartas.baralhos.reduce((s, b) => s + b.revisar + b.aprendendo, 0), "para revisar", "para revisar")} · ${plural(cartas.baralhos.reduce((s, b) => s + b.novos, 0), "nova", "novas")}` : "Tudo em dia.") : " "}
           </span>
-          {cartas && cartas.estatisticas.sequencia > 0 && <span className="sequencia"><Icone nome="raio" tam={14} /> {plural(cartas.estatisticas.sequencia, "dia seguido", "dias seguidos")}</span>}
+
         </Link>
 
         {proxima ? (

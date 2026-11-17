@@ -1,6 +1,6 @@
 // Estado global do app: quem está logado, a biblioteca (matérias, notas e ligações), tema e avisos.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { api, definirAoCairSessao, mensagem, type Biblioteca, type Materia, type Modulo, type NotaMeta, type Pendencia, type Usuario } from "./api";
+import { api, definirAoCairSessao, mensagem, type Biblioteca, type Materia, type Modulo, type NotaMeta, type Ofensiva, type Pendencia, type Usuario } from "./api";
 
 export const PALETA = ["#2fc4b2", "#5aa7e8", "#f0b85a", "#f47c72", "#b79cf2", "#4fcf8e", "#e88fc0", "#7fd0e6", "#d6a86a", "#9fb4ff", "#c3d96a", "#ff9d6e"];
 
@@ -31,6 +31,7 @@ type App = {
   recarregar: () => Promise<void>;
   marcarLida: (id: string, lida: boolean) => void;
   pendencias: Pendencia[];
+  ofensiva: Ofensiva | null;
   ehPendente: (id: string) => boolean;
   adicionarPendencia: (id: string) => void;
   removerPendencia: (id: string, baixa?: boolean) => void;
@@ -83,6 +84,7 @@ export function Provedor({ children }: { children: ReactNode }) {
   const [motivoSaida, setMotivoSaida] = useState("");
   const [tema, setTema] = useState<"dark" | "light">(() => (document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"));
   const [avisos, setAvisos] = useState<Aviso[]>([]);
+  const [ofensiva, setOfensiva] = useState<Ofensiva | null>(null);
   const seq = useRef(0);
   const logado = useRef(false);
 
@@ -122,6 +124,35 @@ export function Provedor({ children }: { children: ReactNode }) {
     if (usuario) recarregar();
   }, [usuario, recarregar]);
 
+  // ofensiva: lida ao entrar e de novo sempre que a pessoa estuda; comemora quando o dia é garantido
+  const ofensivaRef = useRef<Ofensiva | null>(null);
+  const atualizarOfensiva = useCallback(() => {
+    api
+      .get<Ofensiva>("/api/ofensiva")
+      .then((o) => {
+        const antes = ofensivaRef.current;
+        if (antes && !antes.hojeFeito && o.hojeFeito)
+          avisar(o.atual > 1 ? `Ofensiva de ${o.atual} dias! Dia garantido.` : "Ofensiva acesa! Volte amanhã para manter.", "ok");
+        ofensivaRef.current = o;
+        setOfensiva(o);
+      })
+      .catch(() => {});
+  }, [avisar]);
+  useEffect(() => {
+    if (!usuario) {
+      ofensivaRef.current = null;
+      setOfensiva(null);
+      return;
+    }
+    atualizarOfensiva();
+    window.addEventListener("resumo:estudou", atualizarOfensiva);
+    const t = setInterval(atualizarOfensiva, 10 * 60000); // vira o dia sozinho com a aba aberta
+    return () => {
+      window.removeEventListener("resumo:estudou", atualizarOfensiva);
+      clearInterval(t);
+    };
+  }, [usuario, atualizarOfensiva]);
+
   const entrar = useCallback(async (email: string, senha: string) => {
     const r = await api.post<{ user: Usuario }>("/api/auth/login", { email, senha });
     logado.current = true;
@@ -140,7 +171,10 @@ export function Provedor({ children }: { children: ReactNode }) {
   const marcarLida = useCallback(
     (id: string, lida: boolean) => {
       setBib((b) => (b ? { ...b, lidas: lida ? [...new Set([...b.lidas, id])] : b.lidas.filter((x) => x !== id) } : b));
-      api.post("/api/notas/" + id + "/lida", { lida }).catch((e) => avisar(mensagem(e), "erro"));
+      api
+        .post("/api/notas/" + id + "/lida", { lida })
+        .then(() => window.dispatchEvent(new Event("resumo:estudou")))
+        .catch((e) => avisar(mensagem(e), "erro"));
     },
     [avisar]
   );
@@ -176,7 +210,7 @@ export function Provedor({ children }: { children: ReactNode }) {
   const idx = useMemo(() => montarIndice(bib), [bib]);
   const pendencias = useMemo(() => bib?.pendencias || [], [bib]);
   const ehPendente = useCallback((id: string) => pendencias.some((p) => p.nota === id), [pendencias]);
-  const valor: App = { usuario, config, motivoSaida, entrar, sair, definirUsuario: setUsuario, bib, idx, recarregar, marcarLida, pendencias, ehPendente, adicionarPendencia, removerPendencia, tema, alternarTema, avisos, avisar };
+  const valor: App = { usuario, config, motivoSaida, entrar, sair, definirUsuario: setUsuario, bib, idx, recarregar, marcarLida, pendencias, ehPendente, adicionarPendencia, removerPendencia, ofensiva, tema, alternarTema, avisos, avisar };
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }
 

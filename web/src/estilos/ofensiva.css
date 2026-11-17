@@ -1,0 +1,72 @@
+/* Ofensiva (dias seguidos estudando): a chama no menu, a faixa do início e o painel com calendário. */
+
+:root { --fogo: #ff8a3d; --fogo-forte: #ffb347; --fogo-suave: rgba(255, 138, 61, 0.14); }
+:root[data-theme="light"] { --fogo: #e8641c; --fogo-forte: #f08a2c; --fogo-suave: rgba(232, 100, 28, 0.1); }
+
+/* chama do menu */
+.chama { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--raio-p); border: 1px solid var(--linha); background: var(--fundo-2); color: var(--fraco); font-size: 13px; text-align: left; transition: border-color 0.15s, background 0.15s; }
+.chama b { font-size: 17px; font-weight: 800; color: var(--texto); font-variant-numeric: tabular-nums; }
+.chama span { color: var(--suave); }
+.chama:hover { border-color: var(--fogo); }
+.chama.garantida { color: var(--fogo); border-color: color-mix(in srgb, var(--fogo) 45%, transparent); background: var(--fogo-suave); }
+.chama.garantida b { color: var(--fogo); }
+.chama.garantida .icone { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--fogo) 60%, transparent)); }
+.chama.risco { color: var(--fogo); border-style: dashed; border-color: var(--fogo); }
+.chama.risco .icone { animation: tremer 1.6s ease-in-out infinite; }
+.chama.apagada .icone { opacity: 0.55; }
+.chama.compacta { padding: 5px 8px; gap: 4px; border: 0; background: transparent; }
+.chama.compacta b { font-size: 15px; }
+@keyframes tremer { 0%, 100% { transform: rotate(0) scale(1); } 30% { transform: rotate(-8deg) scale(1.08); } 60% { transform: rotate(6deg) scale(0.96); } }
+
+/* faixa do início */
+.faixa-ofensiva { display: flex; align-items: center; gap: 16px; width: 100%; padding: 14px 18px; border-radius: var(--raio-g); text-align: left; border: 1px solid var(--linha); background: var(--superficie); transition: border-color 0.15s, transform 0.15s; }
+.faixa-ofensiva:hover { border-color: var(--fogo); transform: translateY(-1px); }
+.faixa-ofensiva.garantida { background: linear-gradient(120deg, var(--fogo-suave), transparent 65%), var(--superficie); border-color: color-mix(in srgb, var(--fogo) 40%, transparent); }
+.faixa-ofensiva.risco { border-color: var(--fogo); border-style: dashed; }
+.faixa-chama { flex: none; width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; color: var(--fogo); background: var(--fogo-suave); }
+.faixa-ofensiva.apagada .faixa-chama { color: var(--fraco); background: var(--pairar); }
+.faixa-ofensiva.risco .faixa-chama .icone { animation: tremer 1.6s ease-in-out infinite; }
+.faixa-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.faixa-texto strong { font-size: 18px; letter-spacing: -0.01em; }
+.faixa-texto small { font-size: 13px; color: var(--suave); }
+.faixa-ofensiva.risco .faixa-texto small { color: var(--fogo); font-weight: 600; }
+.faixa-semana { display: flex; gap: 5px; }
+.faixa-semana i { width: 14px; height: 14px; border-radius: 4px; background: var(--linha); }
+.faixa-semana i.ativo { background: var(--fogo); }
+.faixa-semana i.hoje { outline: 2px solid var(--texto); outline-offset: 1px; }
+.faixa-recorde { font-size: 12.5px; color: var(--fraco); white-space: nowrap; }
+.faixa-recorde b { color: var(--texto); font-size: 15px; }
+
+/* painel */
+.ofensiva-topo { display: flex; align-items: center; gap: 16px; }
+.ofensiva-chama { width: 76px; height: 76px; border-radius: 22px; display: grid; place-items: center; color: var(--fogo); background: var(--fogo-suave); }
+.ofensiva-topo.apagada .ofensiva-chama { color: var(--fraco); background: var(--pairar); }
+.ofensiva-topo.garantida .ofensiva-chama .icone { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--fogo) 70%, transparent)); }
+.ofensiva-topo > div { display: flex; align-items: baseline; gap: 8px; }
+.ofensiva-numero { font-size: 52px; line-height: 1; font-weight: 800; letter-spacing: -0.04em; color: var(--fogo); }
+.ofensiva-topo.apagada .ofensiva-numero { color: var(--texto); }
+.ofensiva-topo span { color: var(--suave); font-size: 15px; }
+.ofensiva-frase { font-size: 14.5px; font-weight: 600; }
+.ofensiva-frase.risco { color: var(--fogo); }
+.ofensiva-frase.garantida { color: var(--verde); }
+.ofensiva-dados { display: flex; gap: 18px; font-size: 13.5px; color: var(--suave); }
+.ofensiva-dados b { color: var(--texto); font-size: 16px; }
+.calendario { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.cal-cabeca { text-align: center; font-size: 11px; font-weight: 700; color: var(--fraco); }
+.cal-dia { aspect-ratio: 1; border-radius: 7px; display: grid; place-items: center; background: var(--fundo-2); border: 1px solid var(--linha); color: #fff; }
+.cal-dia.n1 { background: color-mix(in srgb, var(--fogo) 35%, var(--fundo-2)); border-color: transparent; }
+.cal-dia.n2 { background: color-mix(in srgb, var(--fogo) 65%, var(--fundo-2)); border-color: transparent; }
+.cal-dia.n3 { background: var(--fogo); border-color: transparent; }
+.cal-dia.hoje { outline: 2px solid var(--texto); outline-offset: 1px; }
+.ofensiva-como { font-size: 12.5px; line-height: 1.55; }
+
+@media (max-width: 900px) {
+  .lateral .chama { display: none; }
+  .faixa-ofensiva { flex-wrap: wrap; gap: 10px 14px; padding: 12px 14px; }
+  .faixa-chama { width: 44px; height: 44px; }
+  .faixa-semana { order: 3; }
+  .faixa-recorde { order: 4; margin-left: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chama .icone, .faixa-chama .icone { animation: none !important; }
+}

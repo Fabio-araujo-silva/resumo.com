@@ -6,6 +6,7 @@ import { Link, useCaminho } from "../lib/rota";
 import { Icone, Logo } from "./Icone";
 import { Busca } from "./Busca";
 import { Espiada } from "./Espiada";
+import { ChamaOfensiva } from "./Ofensiva";
 
 const ITENS = [
   { para: "/", nome: "Início", curto: "Início", icone: "inicio", ativo: (c: string) => c === "/" },
@@ -57,6 +58,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <Logo />
           <span>{config.nome}</span>
         </Link>
+        <ChamaOfensiva />
         <button type="button" className="lateral-busca" onClick={() => setBusca(true)}>
           <Icone nome="busca" tam={16} />
           <span>Buscar</span>
@@ -106,6 +108,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <span>{config.nome}</span>
         </Link>
         <div>
+          <ChamaOfensiva compacta />
           <button type="button" className="botao-icone" onClick={() => setBusca(true)} aria-label="Buscar">
             <Icone nome="busca" />
           </button>

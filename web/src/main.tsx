@@ -7,6 +7,7 @@ import "./estilos/leitor.css";
 import "./estilos/interativo.css";
 import "./estilos/avaliacao.css";
 import "./estilos/ajuda.css";
+import "./estilos/ofensiva.css";
 import "./estilos/admin.css";
 import { Provedor } from "./lib/loja";
 import { App } from "./App";

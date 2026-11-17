@@ -8,6 +8,10 @@ export type NotaMeta = {
   tags: string[]; minutos: number; pdf: boolean; mapa: boolean; rascunho: boolean; cards: number;
 };
 export type Pendencia = { nota: string; em: number };
+export type Ofensiva = {
+  atual: number; recorde: number; hojeFeito: boolean; emRisco: boolean; totalDias: number; viraEm: number;
+  dias: { dia: string; flashcards: number; notas: number; ativo: boolean; hoje: boolean }[];
+};
 export type Biblioteca = { materias: Materia[]; modulos: Modulo[]; notas: NotaMeta[]; links: [string, string][]; lidas: string[]; pendencias: Pendencia[]; versao: number };
 export type Ligada = { id: string; titulo: string; resumo: string; materia: string };
 export type NotaCompleta = {
