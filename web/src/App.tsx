@@ -14,6 +14,7 @@ import { PaginaNota } from "./paginas/Nota";
 import { ProvaLista, ProvaMateria } from "./paginas/Prova";
 import { Baralhos, Estudo } from "./paginas/Flashcards";
 import { Conta } from "./paginas/Conta";
+import { Pendencias } from "./paginas/Pendencias";
 import { Admin } from "./paginas/admin/Admin";
 
 function Tela({ caminho }: { caminho: string }) {
@@ -32,6 +33,7 @@ function Tela({ caminho }: { caminho: string }) {
   if (p[0] === "prova") return p[1] ? <ProvaMateria id={p[1]} /> : <ProvaLista />;
   if (p[0] === "flashcards") return p[1] ? <Estudo materia={p[1]} /> : <Baralhos />;
   if (p[0] === "conta") return <Conta />;
+  if (p[0] === "pendencias") return <Pendencias />;
   if (p[0] === "admin") return <Admin caminho={caminho} />;
   return (
     <div className="pagina">
