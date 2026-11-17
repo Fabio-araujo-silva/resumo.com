@@ -366,14 +366,14 @@ export function Estudo({ materia }: { materia: string }) {
           <p>Você vai sair do estudo e abrir a nota <strong>{irPara.titulo}</strong>. Os flashcards já respondidos ficam salvos; os outros esperam por você.</p>
           <div className="linha-botoes" data-testid="confirmar-ir">
             <button type="button" className="botao primario" onClick={() => ir("/nota/" + irPara.id)}><Icone nome="livro" tam={16} /> Abrir a nota</button>
+            {!ehPendente(irPara.id) && (
+              <button type="button" className="botao fantasma" onClick={() => { adicionarPendencia(irPara.id); setIrPara(null); }} data-testid="guardar-pendencia" title="Não sai do estudo: o assunto fica na aba Pendências para depois">
+                <Icone nome="marcador" tam={16} /> Guardar nas pendências
+              </button>
+            )}
             <button type="button" className="botao fantasma" onClick={() => setIrPara(null)}>Continuar estudando</button>
           </div>
-          {!ehPendente(irPara.id) && (
-            <p className="sub">
-              Prefere não sair agora?{" "}
-              <button type="button" className="link-botao" onClick={() => { adicionarPendencia(irPara.id); setIrPara(null); }}>Guarde nas pendências</button> e estude depois.
-            </p>
-          )}
+          {!ehPendente(irPara.id) && <p className="sub">"Guardar nas pendências" não tira você do estudo: o assunto fica na aba Pendências para estudar depois.</p>}
         </Modal>
       )}
     </div>
