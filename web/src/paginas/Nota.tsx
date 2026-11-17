@@ -9,12 +9,14 @@ import { ConteudoNota, espiar } from "../componentes/ConteudoNota";
 import { Grafo, type NoGrafo } from "../componentes/Grafo";
 import { Icone } from "../componentes/Icone";
 import { Carregando, Selo, Vazio } from "../componentes/ui";
+import { PlayerVoz } from "../componentes/PlayerVoz";
+import { Ajuda } from "../componentes/Ajuda";
 
 const LeitorPdf = lazy(() => import("../componentes/LeitorPdf"));
 const cortar = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s);
 const semMapa = (t: string) => t.replace(/^Mapa\s*[-–—:]\s*/i, "");
 
-// ---------- voz: lê a nota em voz alta com a síntese de fala do próprio navegador ----------
+// texto da nota para a voz do navegador (o ElevenLabs recebe o texto pelo servidor)
 function textoParaVoz(raiz: HTMLElement): string {
   const c = raiz.cloneNode(true) as HTMLElement;
   c.querySelectorAll(".questao, .fig, .passos-barra, .sei-conta, .placar").forEach((e) => e.remove());
@@ -22,52 +24,6 @@ function textoParaVoz(raiz: HTMLElement): string {
   c.querySelectorAll("p, li, tr, h2, h3, h4, .callout-cabeca").forEach((e) => e.append(". "));
   return (c.textContent || "").replace(/\s+/g, " ").replace(/([.,:;])\s*[.,]/g, "$1").trim();
 }
-function useVoz(pegar: () => string) {
-  const disponivel = typeof window !== "undefined" && "speechSynthesis" in window;
-  const [estado, setEstado] = useState<"parado" | "falando" | "pausado">("parado");
-  const parar = useCallback(() => {
-    if (disponivel) speechSynthesis.cancel();
-    setEstado("parado");
-  }, [disponivel]);
-  const alternar = useCallback(() => {
-    if (!disponivel) return;
-    if (estado === "falando") {
-      speechSynthesis.pause();
-      return setEstado("pausado");
-    }
-    if (estado === "pausado") {
-      speechSynthesis.resume();
-      return setEstado("falando");
-    }
-    // pedaços curtos: algumas vozes cortam falas longas
-    const pedacos: string[] = [];
-    for (const frase of pegar().match(/[^.!?]+[.!?]*/g) || []) {
-      const f = frase.trim();
-      if (!f) continue;
-      if (pedacos.length && (pedacos[pedacos.length - 1] + " " + f).length < 200) pedacos[pedacos.length - 1] += " " + f;
-      else pedacos.push(f);
-    }
-    if (!pedacos.length) return;
-    speechSynthesis.cancel();
-    const vozes = speechSynthesis.getVoices();
-    const voz = vozes.find((v) => /^pt[-_]BR/i.test(v.lang)) || vozes.find((v) => /^pt/i.test(v.lang));
-    pedacos.forEach((p, i) => {
-      const u = new SpeechSynthesisUtterance(p);
-      u.lang = "pt-BR";
-      if (voz) u.voice = voz;
-      u.rate = 1.05;
-      if (i === pedacos.length - 1) u.onend = () => setEstado("parado");
-      u.onerror = () => setEstado("parado");
-      speechSynthesis.speak(u);
-    });
-    setEstado("falando");
-  }, [disponivel, estado, pegar]);
-  useEffect(() => () => {
-    if (disponivel) speechSynthesis.cancel();
-  }, [disponivel]);
-  return { disponivel, estado, alternar, parar };
-}
-
 // ---------- baralho da nota: cartas que viram com um clique ----------
 function BaralhoDaNota({ cartas, estudar }: { cartas: { frente: string; verso: string }[]; estudar: string }) {
   const [i, setI] = useState(0);
@@ -80,11 +36,11 @@ function BaralhoDaNota({ cartas, estudar }: { cartas: { frente: string; verso: s
   return (
     <section className="baralho-nota" data-testid="baralho-nota">
       <header>
-        <h3><Icone nome="cartas" tam={17} /> Cartas desta nota</h3>
-        <span className="sub">{i + 1} de {cartas.length} · clique na carta para virar</span>
+        <h3><Icone nome="cartas" tam={17} /> Flashcards desta nota</h3>
+        <span className="sub">{i + 1} de {cartas.length} · clique no flashcard para virar</span>
       </header>
       <div className="vira-palco">
-        <button type="button" className="botao-icone" onClick={() => mudar(-1)} aria-label="Carta anterior"><Icone nome="esquerda" /></button>
+        <button type="button" className="botao-icone" onClick={() => mudar(-1)} aria-label="Flashcard anterior"><Icone nome="esquerda" /></button>
         <div
           className={"vira" + (virada ? " virada" : "")}
           role="button"
@@ -99,12 +55,12 @@ function BaralhoDaNota({ cartas, estudar }: { cartas: { frente: string; verso: s
             <div className="vira-face verso"><span className="rotulo">Resposta</span><div className="prosa" dangerouslySetInnerHTML={{ __html: c.verso }} /></div>
           </div>
         </div>
-        <button type="button" className="botao-icone" onClick={() => mudar(1)} aria-label="Próxima carta"><Icone nome="direita" /></button>
+        <button type="button" className="botao-icone" onClick={() => mudar(1)} aria-label="Próximo flashcard"><Icone nome="direita" /></button>
       </div>
       <div className="vira-pontos" aria-hidden="true">
         {cartas.map((_, n) => <i key={n} className={n === i ? "ativo" : ""} />)}
       </div>
-      <Link para={estudar} className="link-suave">Estudar estas cartas com repetição espaçada <Icone nome="direita" tam={13} /></Link>
+      <Link para={estudar} className="link-suave">Estudar estes flashcards com repetição espaçada <Icone nome="direita" tam={13} /></Link>
     </section>
   );
 }
@@ -182,11 +138,11 @@ type Passo = { id: string; titulo: string };
 function registrarNaTrilha(p: Passo): Passo[] {
   let t: Passo[] = [];
   try {
-    t = JSON.parse(sessionStorage.getItem("sinapse-trilha") || "[]");
+    t = JSON.parse(sessionStorage.getItem("resumo-trilha") || "[]");
   } catch {}
   t = [...t.filter((x) => x.id !== p.id), p].slice(-6);
   try {
-    sessionStorage.setItem("sinapse-trilha", JSON.stringify(t));
+    sessionStorage.setItem("resumo-trilha", JSON.stringify(t));
   } catch {}
   return t;
 }
@@ -194,7 +150,7 @@ function registrarNaTrilha(p: Passo): Passo[] {
 const ATALHOS: [string, string][] = [["→ ou N", "próxima nota"], ["← ou P", "nota anterior"], ["T", "testar-se (lacunas)"], ["L", "marcar como lida"], ["O", "ouvir / pausar"], ["F", "modo foco"], ["Esc", "sair do modo"], ["Ctrl K", "buscar"]];
 const lerTamanho = () => {
   try {
-    const v = Number(localStorage.getItem("sinapse-letra"));
+    const v = Number(localStorage.getItem("resumo-letra"));
     return v >= 14 && v <= 22 ? v : 16.5;
   } catch {
     return 16.5;
@@ -202,7 +158,7 @@ const lerTamanho = () => {
 };
 
 export function PaginaNota({ id }: { id: string }) {
-  const { idx, marcarLida, usuario } = useApp();
+  const { idx, marcarLida, usuario, ehPendente, adicionarPendencia, removerPendencia } = useApp();
   const [dados, setDados] = useState<NotaCompleta | null>(null);
   const [erro, setErro] = useState<{ status: number; texto: string } | null>(null);
   const [teste, setTeste] = useState(false);
@@ -232,12 +188,10 @@ export function PaginaNota({ id }: { id: string }) {
     };
   }, [id]);
 
-  const voz = useVoz(useCallback(() => {
+  const textoVoz = useCallback(() => {
     const prosa = artigo.current?.querySelector<HTMLElement>(".conteudo-nota .prosa");
     return (dados ? dados.nota.titulo + ". " + dados.nota.resumo + " " : "") + (prosa ? textoParaVoz(prosa) : "");
-  }, [dados]));
-  const pararVoz = voz.parar;
-  useEffect(() => pararVoz, [id, pararVoz]);
+  }, [dados]);
 
   // barra de progresso da leitura
   useEffect(() => {
@@ -262,7 +216,7 @@ export function PaginaNota({ id }: { id: string }) {
     setLetra((v) => {
       const novo = Math.min(22, Math.max(14, Math.round((v + d) * 2) / 2));
       try {
-        localStorage.setItem("sinapse-letra", String(novo));
+        localStorage.setItem("resumo-letra", String(novo));
       } catch {}
       return novo;
     });
@@ -286,7 +240,7 @@ export function PaginaNota({ id }: { id: string }) {
       else if (k === "arrowleft" || k === "p") dados.anterior && ir("/nota/" + dados.anterior.id);
       else if (k === "t") setTeste((v) => !v);
       else if (k === "l") marcarLida(dados.nota.id, !idx.lidas.has(dados.nota.id));
-      else if (k === "o") voz.alternar();
+      else if (k === "o") window.dispatchEvent(new Event("resumo:voz-alternar"));
       else if (k === "f") setFoco((v) => !v);
       else if (k === "?") setAjuda((v) => !v);
       else if (k === "escape") {
@@ -298,7 +252,7 @@ export function PaginaNota({ id }: { id: string }) {
     };
     document.addEventListener("keydown", t);
     return () => document.removeEventListener("keydown", t);
-  }, [dados, idx, marcarLida, voz]);
+  }, [dados, idx, marcarLida]);
 
   const contar = useCallback((total: number, reveladas: number) => setLacunas((l) => (l.total === total && l.reveladas === reveladas ? l : { total, reveladas })), []);
   const revelarTudo = () => {
@@ -352,6 +306,15 @@ export function PaginaNota({ id }: { id: string }) {
           </div>
         </header>
 
+        {ehPendente(nota.id) && (
+          <div className="faixa-pendente" data-testid="faixa-pendente">
+            <Icone nome="marcado" tam={17} />
+            <span><strong>Está nas suas pendências.</strong> Quando terminar de estudar, dê baixa para tirar da lista.</span>
+            <button type="button" className="botao pequeno primario" onClick={() => { removerPendencia(nota.id, true); marcarLida(nota.id, true); }}>
+              <Icone nome="check" tam={14} /> Dei baixa
+            </button>
+          </div>
+        )}
         <div className={"ferramentas" + (teste ? " em-teste" : "")} role="toolbar" aria-label="Ferramentas de leitura">
           <button type="button" className={"ferramenta" + (teste ? " ativa" : "")} onClick={() => setTeste((v) => !v)} aria-pressed={teste} data-testid="modo-teste" title="Esconde os termos-chave para você lembrar (T)">
             <Icone nome="prova" tam={16} /> {teste ? "Sair do teste" : "Testar-se"}
@@ -363,12 +326,10 @@ export function PaginaNota({ id }: { id: string }) {
             </>
           ) : (
             <>
-              {voz.disponivel && (
-                <button type="button" className={"ferramenta" + (voz.estado !== "parado" ? " ativa" : "")} onClick={voz.alternar} data-testid="ouvir" title="Ouvir a nota (O)">
-                  <Icone nome="pulso" tam={16} /> {voz.estado === "falando" ? "Pausar" : voz.estado === "pausado" ? "Continuar" : "Ouvir"}
-                </button>
-              )}
-              {voz.estado !== "parado" && <button type="button" className="ferramenta" onClick={voz.parar}>Parar</button>}
+              <PlayerVoz notaId={nota.id} pegarTexto={textoVoz} />
+              <Ajuda rotulo="Como usar as ferramentas">
+                <strong>Testar-se</strong> esconde os termos-chave para você lembrar. <strong>Ouvir</strong> lê a nota em voz alta. <strong>A− A+</strong> mudam a letra. <strong>Foco</strong> esconde o resto da tela. No texto, quase tudo é clicável: links abrem a nota ao lado, tabelas escondem colunas, passos se marcam.
+              </Ajuda>
               <span className="ferramenta-grupo" role="group" aria-label="Tamanho da letra">
                 <button type="button" className="ferramenta" onClick={() => mudarLetra(-1)} aria-label="Diminuir a letra" title="Letra menor">A−</button>
                 <button type="button" className="ferramenta" onClick={() => mudarLetra(1)} aria-label="Aumentar a letra" title="Letra maior">A+</button>
@@ -408,8 +369,13 @@ export function PaginaNota({ id }: { id: string }) {
             </button>
             {dados.cards > 0 && (
               <Link para={`/flashcards/${nota.materia.id}?nota=${encodeURIComponent(nota.id)}`} className="botao fantasma">
-                <Icone nome="cartas" tam={16} /> Estudar as {dados.cards} cartas
+                <Icone nome="cartas" tam={16} /> Estudar os {dados.cards} flashcards
               </Link>
+            )}
+            {!ehPendente(nota.id) && (
+              <button type="button" className="botao fantasma" onClick={() => adicionarPendencia(nota.id)} data-testid="adicionar-pendencia" title="Guarda esta nota na aba Pendências para estudar depois">
+                <Icone nome="marcador" tam={16} /> Adicionar às pendências
+              </button>
             )}
           </div>
           <div className="leitor-vizinhas">
@@ -431,7 +397,7 @@ export function PaginaNota({ id }: { id: string }) {
 
       <aside className="trilho-lateral">
         <section className="cartao conexoes">
-          <h3><Icone nome="grafo" tam={16} /> Conexões</h3>
+          <h3><Icone nome="grafo" tam={16} /> Conexões <Ajuda>As notas que esta cita (leva a) e as que citam esta (citada em). Clique para espiar sem sair daqui.</Ajuda></h3>
           {dados.saidas.length + dados.entradas.length === 0 ? (
             <p className="sub">Esta nota ainda não se liga a outras.</p>
           ) : (
@@ -441,7 +407,7 @@ export function PaginaNota({ id }: { id: string }) {
               <ListaLigadas titulo="Citada em" notas={dados.entradas} />
             </>
           )}
-          <Link para={"/notas?materia=" + nota.materia.id} className="link-suave">Ver o grafo da matéria <Icone nome="direita" tam={13} /></Link>
+          <Link para={"/notas?nota=" + encodeURIComponent(nota.id)} className="link-suave" data-testid="explorar-ligacoes">Explorar ligações a partir desta nota <Icone nome="direita" tam={13} /></Link>
         </section>
         {dados.titulos.length > 1 && (
           <section className="cartao sumario">
