@@ -310,6 +310,9 @@ export function Grafo({ nos, arestas, selecionado, aoSelecionar, aoAbrir, tema, 
     const dedos = new Map<number, { x: number; y: number }>();
     let arrasto: { ponto: Ponto | null; x: number; y: number; moveu: boolean; vx: number; vy: number } | null = null;
     let pinca = 0;
+    // o clique simples pode mudar o grafo (no "Explorar ligações" ele recentraliza): o duplo clique
+    // vale para a nota do primeiro clique, mesmo que ela tenha saído do lugar
+    let ultimoClique = { id: "", t: 0 };
 
     const baixo = (ev: PointerEvent) => {
       c.setPointerCapture(ev.pointerId);
@@ -373,11 +376,14 @@ export function Grafo({ nos, arestas, selecionado, aoSelecionar, aoAbrir, tema, 
       arrasto = null;
       if (a.ponto) a.ponto.fixo = false;
       c.style.cursor = e.sobre ? "pointer" : "grab";
-      if (!a.moveu) props.current.aoSelecionar(a.ponto ? a.ponto.id : null);
+      if (!a.moveu) {
+        if (a.ponto) ultimoClique = { id: a.ponto.id, t: Date.now() };
+        props.current.aoSelecionar(a.ponto ? a.ponto.id : null);
+      }
     };
     const duplo = (ev: MouseEvent) => {
-      const p = acertar(ev);
-      if (p) props.current.aoAbrir(p.id);
+      const id = ultimoClique.id && Date.now() - ultimoClique.t < 600 ? ultimoClique.id : acertar(ev)?.id;
+      if (id) props.current.aoAbrir(id);
     };
     const roda = (ev: WheelEvent) => {
       ev.preventDefault();
